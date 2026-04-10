@@ -1,14 +1,17 @@
 // Copyright 2021 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
 
+// Discord-like composition area
+
 @use '../mixins';
 @use '../variables';
 
 .CompositionArea {
   position: relative;
-  min-height: 42px;
-  padding-block: 10px;
-  padding-inline: 0;
+  min-height: 44px;
+  padding-block: 0;
+  padding-inline: 16px;
+  margin-bottom: 0;
 
   &__placeholder {
     flex-grow: 1;
@@ -18,14 +21,23 @@
   &__row {
     display: flex;
     flex-direction: row;
-    align-items: end;
+    align-items: center;
+    border-radius: 8px;
+    padding: 0 4px;
+
+    @include mixins.light-theme {
+      background-color: variables.$color-gray-05;
+    }
+    @include mixins.dark-theme {
+      background-color: variables.$color-gray-75;
+    }
 
     &--center {
       justify-content: center;
     }
     &--padded {
       padding-block: 0;
-      padding-inline: 12px;
+      padding-inline: 4px;
     }
     &--control-row {
       margin-top: 12px;
@@ -37,25 +49,23 @@
   }
 
   &__button-cell {
-    margin-block: 0;
-    margin-inline: 4px;
+    margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100%;
     flex-shrink: 0;
 
     &:first-child {
-      margin-inline-start: 12px;
+      margin-inline-start: 4px;
     }
 
     &:last-child {
-      margin-inline-end: 12px;
+      margin-inline-end: 4px;
     }
   }
 
   &__button-edit {
-    margin-bottom: 4px;
+    margin-bottom: 0;
   }
 
   &__edit-button {
@@ -107,6 +117,15 @@
     border: none;
     width: 32px;
     height: 32px;
+    border-radius: 4px;
+    margin: 2px;
+
+    &:hover {
+      @include mixins.dark-theme {
+        background-color: variables.$color-white-alpha-10;
+      }
+    }
+
     &::after {
       display: block;
       content: '';
@@ -119,16 +138,17 @@
       );
     }
   }
+
   &__input {
     flex-grow: 1;
     position: relative;
-    margin-block: 0;
-    margin-inline: 6px;
+    margin: 0;
 
     &--large {
       margin: 0;
     }
   }
+
   $comp-area: &;
   &__toggle-large {
     $width: 48px;
@@ -138,8 +158,6 @@
     height: $height;
     position: absolute;
     inset-inline-start: calc(50% - $width / 2);
-
-    // 6px coming from padding-top of .module-composition-input__input__scroller
     top: calc(0px - $height / 2 - 6px);
     border-radius: 12px 12px 0 0;
     pointer-events: none;
@@ -209,7 +227,6 @@
     flex-direction: column;
     align-items: center;
 
-    // Note the margin in &__placeholder above
     padding-block: 14px 18px;
     padding-inline: 16px;
 

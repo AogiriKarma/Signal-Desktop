@@ -40,10 +40,11 @@
     }
   }
 
+  // Discord-like: transparent input, no border-radius (parent handles it)
   &__input {
-    $border-size: 1px;
+    $border-size: 0px;
 
-    border-radius: 18px;
+    border-radius: 0;
     overflow: hidden;
     overflow-wrap: break-word;
     word-break: auto-phrase;
@@ -67,7 +68,6 @@
 
     // Override Quill styles
     .ql-container {
-      // Inherit global font stack
       font-family: inherit;
       @include mixins.font-body-1;
     }
@@ -83,14 +83,12 @@
     }
 
     @include mixins.light-theme() {
-      // Same as background color
-      background-color: variables.$color-gray-05;
+      background-color: transparent;
       color: variables.$color-gray-90;
     }
 
     @include mixins.dark-theme() {
-      // Same as background color
-      background-color: variables.$color-gray-75;
+      background-color: transparent;
       color: variables.$color-gray-05;
     }
 
