@@ -15,6 +15,8 @@ $NavTabs__ProfileAvatar__size: 28px;
   display: flex;
   width: 100%;
   height: 100%;
+  gap: 6px;
+  padding: 6px;
 }
 
 .NavTabs {
@@ -27,7 +29,8 @@ $NavTabs__ProfileAvatar__size: 28px;
   padding-top: var(--title-bar-drag-area-height);
   padding-bottom: 8px;
   background: var(--axo-color-surface-secondary);
-  border-inline-end: 1px solid var(--axo-color-border-primary);
+  // nord: bulle flottante -> coins arrondis, pas de bordure collee
+  border-radius: 12px;
 }
 
 .NavTabs--collapsed {
@@ -221,4 +224,5 @@ $NavTabs__ProfileAvatar__size: 28px;
   display: flex;
   flex: 1;
   min-width: 0;
+  gap: 6px;
 }

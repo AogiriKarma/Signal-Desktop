@@ -8,6 +8,11 @@ body.is-resizing-left-pane {
   cursor: col-resize;
 }
 
+// nord: fond assombri pour que les panneaux flottants se detachent
+body.dark-theme {
+  background-color: variables.$color-black;
+}
+
 [contenteditable]:not([contenteditable='false']) {
   /* stylelint-disable-next-line property-no-deprecated */
   -webkit-user-modify: read-write-plaintext-only;

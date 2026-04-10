@@ -5,6 +5,11 @@
 @use '../variables';
 
 .ConversationView {
+  display: flex;
+  flex-direction: column;
+  overflow: initial;
+  border-radius: 12px;
+
   &__pane {
     display: flex;
     position: relative;

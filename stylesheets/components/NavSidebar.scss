@@ -13,7 +13,9 @@
   flex-shrink: 0;
   padding-top: var(--title-bar-drag-area-height);
   background: var(--axo-color-surface-secondary);
-  border-inline-end: 1px solid var(--axo-color-border-primary);
+  // nord: bulle flottante -> coins arrondis, pas de bordure collee
+  user-select: none;
+  border-radius: 12px;
 }
 
 .NavSidebar__Header {
