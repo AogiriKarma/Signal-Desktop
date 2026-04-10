@@ -67,16 +67,32 @@
 
 // Module: Message
 
+// Discord-like: full-width message row with hover highlight
 .module-message {
   position: relative;
   display: flex;
   flex-direction: row;
-  align-items: stretch;
+  align-items: flex-start;
   outline: none;
   padding-inline: 16px;
+  padding-block: 2px;
   transition-property: background, translate;
   transition-duration: 0.1s;
   transition-timing-function: ease-out;
+
+  // First message in group: more top spacing
+  &:not(.module-message--collapsed-above) {
+    margin-top: 17px;
+  }
+
+  &:hover {
+    @include mixins.dark-theme {
+      background-color: variables.$color-white-alpha-06;
+    }
+    @include mixins.light-theme {
+      background-color: variables.$color-black-alpha-06;
+    }
+  }
 }
 
 .module-message__quote-story-reaction-header {
@@ -149,8 +165,9 @@
   }
 }
 
+// Discord-like: all messages left-aligned
 .module-message--outgoing {
-  flex-direction: row-reverse;
+  flex-direction: row;
 }
 
 .module-message__buttons {
@@ -176,14 +193,14 @@
   }
 }
 
+// Discord-like: same button layout as incoming
 .module-message__buttons--outgoing {
-  padding-inline-end: 8px;
-  flex-direction: row-reverse;
+  padding-inline-start: 8px;
 
   & > * {
-    margin-inline-end: 12px;
+    margin-inline-start: 12px;
     &:first-child {
-      margin-inline-end: 0;
+      margin-inline-start: 0;
     }
   }
 }
@@ -302,63 +319,49 @@
   inset-inline-end: 8px;
 }
 
+// Discord-like: wider message content area
 .module-message__container-outer {
   line-height: 0;
   display: flex;
   flex-direction: column;
   min-width: 0;
-  max-width: min(306px, calc(100% - 16px - 22px));
+  max-width: calc(100% - 72px);
 
   .module-timeline--width-wide &,
   .module-message-detail & {
-    // NOTE(evanhahn): I wanted this to be 66% of the timeline, but I could not make that
-    //   work without introducing layout bugs for some message types. This constant,
-    //   though not ideal, fixes those bugs.
-    max-width: 50vw;
+    max-width: calc(100% - 72px);
   }
 
   .module-timeline--width-medium & {
-    max-width: 370px;
+    max-width: calc(100% - 72px);
   }
 }
 
 $message-padding-vertical: 8px;
 $message-padding-horizontal: 12px;
 
+// Discord-like: flat messages, no bubbles
 .module-message__container {
-  $collapsed-border-radius: 4px;
-
   position: relative;
   display: inline-block;
-  border-radius: 18px;
+  border-radius: 0;
   outline: none;
-  margin-bottom: 6px;
-  margin-top: 6px;
+  margin-bottom: 0;
+  margin-top: 0;
   min-width: 0px;
   overflow: hidden;
+  background-color: transparent !important;
+  background-image: none !important;
 
-  padding-inline: $message-padding-horizontal;
-  padding-top: $message-padding-vertical;
-  padding-bottom: $message-padding-vertical;
+  padding-inline: 0;
+  padding-top: 2px;
+  padding-bottom: 2px;
 
   .module-message--collapsed-above & {
-    margin-top: 1px;
+    margin-top: 0;
   }
   .module-message--collapsed-below & {
-    margin-bottom: 1px;
-  }
-
-  .module-message--incoming.module-message--collapsed-above & {
-    border-start-start-radius: $collapsed-border-radius;
-  }
-  .module-message--incoming.module-message--collapsed-below & {
-    border-end-start-radius: $collapsed-border-radius;
-  }
-  .module-message--outgoing.module-message--collapsed-above & {
-    border-start-end-radius: $collapsed-border-radius;
-  }
-  .module-message--outgoing.module-message--collapsed-below & {
-    border-end-end-radius: $collapsed-border-radius;
+    margin-bottom: 0;
   }
 }
 
@@ -463,24 +466,24 @@ $message-padding-horizontal: 12px;
   }
 }
 
+// Discord-like: no bubble backgrounds, uniform text color
 .module-message__container--outgoing {
   @include mixins.light-theme {
-    background-color: variables.$color-ultramarine;
-    color: variables.$color-white;
+    background-color: transparent;
+    color: variables.$color-gray-90;
   }
   @include mixins.dark-theme {
-    background-color: variables.$color-ultramarine;
+    background-color: transparent;
     color: variables.$color-gray-05;
   }
 }
 
-// In case the color gets messed up
 .module-message__container--incoming {
-  background-color: variables.$color-gray-05;
+  background-color: transparent;
   color: variables.$color-gray-90;
 
   @include mixins.dark-theme {
-    background-color: variables.$color-gray-75;
+    background-color: transparent;
     color: variables.$color-gray-05;
   }
 }
@@ -1068,13 +1071,15 @@ $message-padding-horizontal: 12px;
   text-transform: lowercase;
 }
 
+// Discord-like: author name bigger, inline with timestamp
 .module-message__author {
-  @include mixins.font-body-small-bold;
+  @include mixins.font-body-1-bold;
 
   user-select: none;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 3px;
+  margin-bottom: 4px;
+  line-height: 1.375rem;
 }
 
 .module-message__author_with_sticker {
@@ -1100,6 +1105,7 @@ $message-padding-horizontal: 12px;
   margin-bottom: 3px;
 }
 
+// Discord-like: text style
 .module-message__text {
   @include mixins.font-body-1;
 
@@ -1107,36 +1113,39 @@ $message-padding-horizontal: 12px;
   overflow-wrap: break-word;
   word-break: auto-phrase;
   white-space: pre-wrap;
+  line-height: 1.375rem;
 
   @include mixins.light-theme {
-    color: variables.$color-white-alpha-90;
+    color: variables.$color-gray-90;
   }
   @include mixins.dark-theme {
-    color: variables.$color-white-alpha-90;
+    color: variables.$color-gray-05;
   }
 
   a {
-    text-decoration: underline;
+    text-decoration: none;
     outline: none;
-    // Allow links to be broken anywhere so they don't force extra line breaks
-    // when surrounded by text.
     word-break: break-all;
 
     @include mixins.light-theme {
-      color: variables.$color-white-alpha-90;
+      color: variables.$color-link;
     }
+    @include mixins.dark-theme {
+      color: variables.$color-link;
+    }
+
+    &:hover {
+      text-decoration: underline;
+    }
+
     @include mixins.keyboard-mode {
       &:focus {
         outline: 1px solid variables.$color-gray-90;
       }
     }
-
-    @include mixins.dark-theme {
-      color: variables.$color-white-alpha-90;
-    }
     @include mixins.dark-keyboard-mode {
       &:focus {
-        outline: 1px solid variables.$color-white-alpha-90;
+        outline: 1px solid variables.$color-gray-05;
       }
     }
   }
@@ -1182,14 +1191,15 @@ $message-padding-horizontal: 12px;
   color: light-dark(variables.$color-gray-60, variables.$color-gray-25);
 }
 
+// Discord-like: metadata left-aligned, subtle
 .module-message__metadata {
   @include mixins.font-caption;
 
   align-items: center;
   display: flex;
   flex-direction: row;
-  justify-content: flex-end;
-  margin-top: 3px;
+  justify-content: flex-start;
+  margin-top: 2px;
   font-style: normal;
   user-select: none;
   white-space: nowrap;
@@ -1350,13 +1360,14 @@ $message-padding-horizontal: 12px;
   border-bottom-right-radius: 4px;
 }
 
+// Discord-like: avatar 40px aligned to top
 .module-message__author-avatar-container {
-  align-items: flex-end;
+  align-items: flex-start;
   display: flex;
   justify-content: center;
-  margin-inline-end: 8px;
-  min-width: 28px;
-  padding-bottom: 6px;
+  margin-inline-end: 16px;
+  min-width: 40px;
+  padding-top: 2px;
 
   &--with-reactions {
     padding-bottom: 15px;
@@ -2333,10 +2344,15 @@ button.ConversationDetails__action-button {
 
 // Module: Image
 
+// Discord-like: images with rounded corners, constrained size
 .module-image {
   position: relative;
   display: inline-block;
   vertical-align: middle;
+  border-radius: 8px;
+  overflow: hidden;
+  max-width: 550px;
+  max-height: 350px;
 }
 
 .module-image--hidden {

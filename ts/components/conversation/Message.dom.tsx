@@ -135,7 +135,7 @@ const log = createLogger('Message');
 
 const EXPIRATION_CHECK_MINIMUM = 2000;
 const EXPIRED_DELAY = 600;
-const GROUP_AVATAR_SIZE = AvatarSize.TWENTY_EIGHT;
+const GROUP_AVATAR_SIZE = AvatarSize.FORTY;
 const STICKER_SIZE = 200;
 const GIF_SIZE = 300;
 // Note: this needs to match the animation time
@@ -1014,12 +1014,11 @@ export class Message extends React.PureComponent<Props, State> {
     return isMessageRequestAccepted && !isBlocked;
   }
 
+  // Discord-like: show author on all first messages in a group
   #shouldRenderAuthor(): boolean {
-    const { author, conversationType, direction, shouldCollapseAbove } =
+    const { author, shouldCollapseAbove } =
       this.props;
     return Boolean(
-      direction === 'incoming' &&
-      conversationType === 'group' &&
       author.title &&
       !shouldCollapseAbove
     );
@@ -2238,8 +2237,7 @@ export class Message extends React.PureComponent<Props, State> {
     }
 
     const withCaption = Boolean(text);
-    const withContentAbove =
-      conversationType === 'group' && direction === 'incoming';
+    const withContentAbove = this.#shouldRenderAuthor();
     const withContentBelow =
       withCaption ||
       this.#getMetadataPlacement() !== MetadataPlacement.NotRendered;
@@ -2328,14 +2326,12 @@ export class Message extends React.PureComponent<Props, State> {
       getPreferredBadge,
       i18n,
       isSelectMode,
-      shouldCollapseBelow,
+      shouldCollapseAbove,
       showContactModal,
       theme,
     } = this.props;
 
-    if (conversationType !== 'group' || direction !== 'incoming') {
-      return null;
-    }
+    // Discord-like: show avatar on all conversations
 
     return (
       <div
@@ -2345,7 +2341,7 @@ export class Message extends React.PureComponent<Props, State> {
         })}
         inert={isSelectMode ? true : undefined}
       >
-        {shouldCollapseBelow ? (
+        {shouldCollapseAbove ? (
           <AvatarSpacer size={GROUP_AVATAR_SIZE} />
         ) : (
           <Avatar
