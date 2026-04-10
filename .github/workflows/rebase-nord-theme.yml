@@ -1,0 +1,51 @@
+name: Auto-rebase nord-theme
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  rebase:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure git
+        run: |
+          git config user.name "AogiriKarma"
+          git config user.email "leandro+private@lantunes.ch"
+
+      - name: Attempt rebase
+        id: rebase
+        run: |
+          git checkout nord-theme
+          git rebase main && echo "success=true" >> "$GITHUB_OUTPUT" || echo "success=false" >> "$GITHUB_OUTPUT"
+
+      - name: Push rebased branch
+        if: steps.rebase.outputs.success == 'true'
+        run: git push --force-with-lease origin nord-theme
+
+      - name: Notify conflict
+        if: steps.rebase.outputs.success == 'false'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const existing = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              labels: 'rebase-conflict',
+              state: 'open',
+            });
+            if (existing.data.length === 0) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: 'nord-theme rebase conflict',
+                body: `Le rebase automatique de \`nord-theme\` sur \`main\` a échoué.\n\nFix manuellement :\n\`\`\`\ngit checkout nord-theme\ngit rebase main\n# fix conflicts\ngit push --force-with-lease origin nord-theme\n\`\`\``,
+                labels: ['rebase-conflict'],
+              });
+            }
