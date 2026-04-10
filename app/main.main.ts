@@ -704,7 +704,7 @@ async function createWindow() {
     height,
     minWidth: MIN_WIDTH,
     minHeight: MIN_HEIGHT,
-    autoHideMenuBar: false,
+    autoHideMenuBar: true,
     titleBarStyle: mainTitleBarStyle,
     backgroundColor,
     webPreferences: {
@@ -719,7 +719,7 @@ async function createWindow() {
       spellcheck,
     },
     icon: windowIcon,
-    ...pick(windowConfig, ['autoHideMenuBar', 'x', 'y']),
+    ...pick(windowConfig, ['x', 'y']),
   };
 
   if (!isNumber(windowOptions.width) || windowOptions.width < MIN_WIDTH) {
@@ -2425,7 +2425,7 @@ function setupMenu(options?: Partial<CreateTemplateOptionsType>) {
     getResolvedMessagesLocale().i18n
   );
   const menu = Menu.buildFromTemplate(template);
-  Menu.setApplicationMenu(menu);
+  Menu.setApplicationMenu(null);
 
   mainWindow?.webContents.send('window:set-menu-options', {
     development: menuOptions.development,
