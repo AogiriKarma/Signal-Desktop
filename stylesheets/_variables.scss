@@ -20,32 +20,59 @@ $monospace:
   'SF Mono', SFMono-Regular, ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas,
   monospace;
 
-// -- V3 Colors
+// -- Nord Theme Colors
+// https://www.nordtheme.com/
 
-$color-accent-blue: #2c6bed;
-$color-accent-green: #4caf50;
-$color-accent-red: #f44336;
-$color-accent-yellow: #ffd624;
+// Nord Polar Night (backgrounds)
+$nord0: #2e3440;
+$nord1: #3b4252;
+$nord2: #434c5e;
+$nord3: #4c566a;
 
-$color-white: #ffffff;
-$color-gray-02: #f6f6f6;
-$color-gray-04: #f0f0f0;
-$color-gray-05: #e9e9e9;
-$color-gray-15: #dedede;
-$color-gray-20: #c6c6c6;
-$color-gray-25: #b9b9b9;
-$color-gray-40: #808080;
-$color-gray-45: #848484;
-$color-gray-60: #5e5e5e;
-$color-gray-62: #545454;
-$color-gray-65: #4a4a4a;
-$color-gray-75: #3b3b3b;
-$color-gray-78: #343434;
-$color-gray-80: #2e2e2e;
-$color-gray-85: #262626;
-$color-gray-90: #1b1b1b;
-$color-gray-95: #121212;
-$color-black: #000000;
+// Nord Snow Storm (text)
+$nord4: #d8dee9;
+$nord5: #e5e9f0;
+$nord6: #eceff4;
+
+// Nord Frost (accents)
+$nord7: #8fbcbb;
+$nord8: #88c0d0;
+$nord9: #81a1c1;
+$nord10: #5e81ac;
+
+// Nord Aurora (status)
+$nord11: #bf616a;
+$nord12: #d08770;
+$nord13: #ebcb8b;
+$nord14: #a3be8c;
+$nord15: #b48ead;
+
+// -- V3 Colors (remapped to Nord)
+
+$color-accent-blue: $nord8;
+$color-accent-green: $nord14;
+$color-accent-red: $nord11;
+$color-accent-yellow: $nord13;
+
+$color-white: $nord6;
+$color-gray-02: $nord5;
+$color-gray-04: $nord5;
+$color-gray-05: $nord4;
+$color-gray-15: $nord4;
+$color-gray-20: #b0b8c9;
+$color-gray-25: #a0a8b9;
+$color-gray-40: $nord3;
+$color-gray-45: $nord3;
+$color-gray-60: $nord3;
+$color-gray-62: $nord2;
+$color-gray-65: $nord2;
+$color-gray-75: $nord1;
+$color-gray-78: #353b49;
+$color-gray-80: $nord1;
+$color-gray-85: #333a48;
+$color-gray-90: $nord0;
+$color-gray-95: $nord0;
+$color-black: #242933;
 
 $color-white-alpha-06: rgba($color-white, 0.06);
 $color-white-alpha-08: rgba($color-white, 0.08);
@@ -85,14 +112,14 @@ $color-black-alpha-90: rgba($color-black, 0.9);
 
 $color-transparent: rgba(0, 0, 0, 0);
 
-$color-ultramarine-dark: #1851b4;
-$color-ultramarine-logo: #3b45fd;
-$color-ultramarine-light: #6191f3;
-$color-ultramarine-dawn: #406ec9;
-$color-ultramarine-pastel: #abc4f8;
-$color-ultramarine-pale: #d2dffb;
-$color-ultramarine: #2c6bed;
-$color-link: #315ff4;
+$color-ultramarine-dark: $nord10;
+$color-ultramarine-logo: $nord8;
+$color-ultramarine-light: $nord8;
+$color-ultramarine-dawn: $nord9;
+$color-ultramarine-pastel: #a3c9d6;
+$color-ultramarine-pale: #c4dbe2;
+$color-ultramarine: $nord8;
+$color-link: $nord9;
 
 // Flat colors
 
@@ -116,8 +143,8 @@ $color-orange: #ff9500;
 
 $color-ultramarine-gradient: (
   deg: 180deg,
-  start: #0552f0,
-  end: $color-ultramarine,
+  start: $nord10,
+  end: $nord8,
 );
 $color-basil: (
   deg: 180deg,
@@ -262,7 +289,7 @@ $conversation-colors-gradient: (
 );
 
 // Used for safety number change warning banner, progress bars and toasts
-$color-ios-blue-tint: #b0c8f9;
+$color-ios-blue-tint: $nord9;
 
 // -- Non-V3 colors
 
@@ -270,10 +297,10 @@ $color-ios-blue-tint: #b0c8f9;
 $color-white-alpha-40: rgba($color-white, 0.4);
 
 // Used in tap-to-view error states
-$color-deep-red: #ff261f;
+$color-deep-red: $nord11;
 
-$color-selected-message-background-light: rgba(44, 107, 237, 0.24);
-$color-selected-message-background-dark: $color-gray-65;
+$color-selected-message-background-light: rgba(136, 192, 208, 0.24);
+$color-selected-message-background-dark: $nord2;
 
 $color-paypal-yellow: #f6c757;
 
@@ -284,7 +311,7 @@ $header-height: 52px;
 $ease-out-expo: cubic-bezier(0.19, 1, 0.22, 1);
 $ease-out-local-preview: cubic-bezier(0.17, 0.17, 0, 1);
 
-$calling-background-color: $color-gray-90;
+$calling-background-color: $nord0;
 
 // Maintain aspect ratio 960x720 with $local-preview-height
 $calling-local-preview-normal-width: 106.67px;
