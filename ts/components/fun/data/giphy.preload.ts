@@ -1,5 +1,6 @@
 // Copyright 2026 Signal Messenger, LLC
 // SPDX-License-Identifier: AGPL-3.0-only
+// Modified: Replaced Giphy with Tenor API
 import { z } from 'zod';
 import { parseUnknown } from '../../../util/schemas.std.ts';
 import {
@@ -12,26 +13,43 @@ import type { PaginatedGifResults } from '../panels/FunPanelGifs.dom.tsx';
 import {
   getGifCdnUrlOrigin,
   isGifCdnUrlOriginAllowed,
-  isGiphyCdnUrlOrigin,
 } from '../../../util/gifCdnUrls.dom.ts';
 
-const BASE_API_URL = 'https://api.giphy.com';
-const API_KEY = 'ApVVlSyeBfNKK6UWtnBRq9CvAkWsxayB';
+const TENOR_BASE_URL = 'https://g.tenor.com';
+const TENOR_API_KEY = 'LIVDSRZULELA';
+const CONTENT_FILTER = 'medium';
 
-const CONTENT_RATING = 'pg-13';
-const CONTENT_BUNDLE = 'messaging_non_clips';
+const StringInteger = z.preprocess(input => {
+  if (typeof input === 'string') {
+    return safeParseInteger(input);
+  }
+  return input;
+}, z.number().int());
 
-const GIF_FIELDS = [
-  'id',
-  'title',
-  'alt_text',
-  'images.original.width',
-  'images.original.height',
-  'images.original.mp4',
-  'images.fixed_width.width',
-  'images.fixed_width.height',
-  'images.fixed_width.mp4',
-].join(',');
+const TenorMediaObjectSchema = z.object({
+  url: z.string(),
+  dims: z.tuple([StringInteger, StringInteger]),
+  size: z.number().optional(),
+});
+
+const TenorGifSchema = z.object({
+  id: z.string().min(1),
+  title: z.string(),
+  content_description: z.string().optional().default(''),
+  media: z.array(
+    z.object({
+      tinygif: TenorMediaObjectSchema.optional(),
+      gif: TenorMediaObjectSchema.optional(),
+      mp4: TenorMediaObjectSchema.optional(),
+      tinymp4: TenorMediaObjectSchema.optional(),
+    })
+  ),
+});
+
+const TenorResultsSchema = z.object({
+  next: z.string().optional().default('0'),
+  results: z.array(TenorGifSchema),
+});
 
 export type GiphySearchParams = Readonly<{
   query: string;
@@ -44,83 +62,47 @@ export type GiphyTrendingParams = Readonly<{
   offset: number;
 }>;
 
-const GiphyPaginationSchema = z.object({
-  offset: z.number().int(),
-  total_count: z.number().int(),
-  count: z.number().int(),
-});
+type TenorResults = z.infer<typeof TenorResultsSchema>;
+type TenorGif = z.infer<typeof TenorGifSchema>;
 
-const StringInteger = z.preprocess(input => {
-  if (typeof input === 'string') {
-    return safeParseInteger(input);
-  }
-  return input;
-}, z.number().int());
+function normalizeTenorResults(results: TenorResults): PaginatedGifResults {
+  const nextPos = results.next;
+  const nextOffset =
+    nextPos && nextPos !== '0' ? parseInt(nextPos, 10) || null : null;
 
-const GiphyCdnUrl = z.string().refine(input => {
-  const origin = getGifCdnUrlOrigin(input);
-  return origin != null && isGiphyCdnUrlOrigin(origin);
-});
-
-const GiphyImagesSchema = z.object({
-  original: z.object({
-    width: StringInteger,
-    height: StringInteger,
-    mp4: GiphyCdnUrl,
-  }),
-  // fixed width of 200px
-  fixed_width: z.object({
-    width: StringInteger,
-    height: StringInteger,
-    mp4: GiphyCdnUrl,
-  }),
-});
-
-const GiphyGifSchema = z.object({
-  id: z.string().min(1),
-  title: z.string(),
-  alt_text: z.string(),
-  images: GiphyImagesSchema,
-});
-
-const GiphyResultsSchema = z.object({
-  pagination: GiphyPaginationSchema,
-  data: z.array(GiphyGifSchema),
-});
-
-export type GiphyPagination = z.infer<typeof GiphyPaginationSchema>;
-export type GiphyImages = z.infer<typeof GiphyImagesSchema>;
-export type GiphyGif = z.infer<typeof GiphyGifSchema>;
-export type GiphyResults = z.infer<typeof GiphyResultsSchema>;
-
-function getNextOffset(pagination: GiphyPagination): number | null {
-  const end = pagination.offset + pagination.count;
-  if (end >= pagination.total_count) {
-    return null;
-  }
-  return end;
-}
-
-function normalizeGiphyResults(results: GiphyResults): PaginatedGifResults {
   return {
-    next: getNextOffset(results.pagination),
-    gifs: results.data.map(item => {
-      return {
-        id: item.id,
-        title: item.title,
-        description: item.alt_text,
-        previewMedia: {
-          url: item.images.fixed_width.mp4,
-          width: item.images.fixed_width.width,
-          height: item.images.fixed_width.height,
-        },
-        attachmentMedia: {
-          url: item.images.original.mp4,
-          width: item.images.original.width,
-          height: item.images.original.height,
-        },
-      };
-    }),
+    next: nextOffset,
+    gifs: results.results
+      .map((item: TenorGif) => {
+        const media = item.media[0];
+        if (!media) return null;
+
+        // Use tinymp4 for preview, mp4 for full attachment
+        // Fall back to tinygif/gif if mp4 not available
+        const preview = media.tinymp4 || media.tinygif;
+        const attachment = media.mp4 || media.gif;
+
+        if (!preview || !attachment) return null;
+
+        return {
+          id: item.id,
+          title: item.title,
+          description: item.content_description,
+          previewMedia: {
+            url: preview.url,
+            width: preview.dims[0],
+            height: preview.dims[1],
+          },
+          attachmentMedia: {
+            url: attachment.url,
+            width: attachment.dims[0],
+            height: attachment.dims[1],
+          },
+        };
+      })
+      .filter(
+        (gif): gif is NonNullable<typeof gif> => gif != null
+      ),
   };
 }
 
@@ -130,17 +112,16 @@ export async function fetchGiphySearch(
   offset: number | null,
   signal?: AbortSignal
 ): Promise<PaginatedGifResults> {
-  const url = new URL('v1/gifs/search', BASE_API_URL);
+  const url = new URL('v1/search', TENOR_BASE_URL);
 
-  url.searchParams.set('api_key', API_KEY);
-  url.searchParams.set('rating', CONTENT_RATING);
-  url.searchParams.set('bundle', CONTENT_BUNDLE);
-  url.searchParams.set('fields', GIF_FIELDS);
-
+  url.searchParams.set('key', TENOR_API_KEY);
+  url.searchParams.set('contentfilter', CONTENT_FILTER);
+  url.searchParams.set('media_filter', 'basic');
+  url.searchParams.set('ar_range', 'all');
   url.searchParams.set('q', query);
   url.searchParams.set('limit', `${limit}`);
   if (offset != null) {
-    url.searchParams.set('offset', `${offset}`);
+    url.searchParams.set('pos', `${offset}`);
   }
 
   const response = await fetchJsonViaProxy({
@@ -149,8 +130,8 @@ export async function fetchGiphySearch(
     signal,
   });
 
-  const results = parseUnknown(GiphyResultsSchema, response.data);
-  return normalizeGiphyResults(results);
+  const results = parseUnknown(TenorResultsSchema, response.data);
+  return normalizeTenorResults(results);
 }
 
 export async function fetchGiphyTrending(
@@ -158,16 +139,15 @@ export async function fetchGiphyTrending(
   offset: number | null,
   signal?: AbortSignal
 ): Promise<PaginatedGifResults> {
-  const url = new URL('v1/gifs/trending', BASE_API_URL);
+  const url = new URL('v1/trending', TENOR_BASE_URL);
 
-  url.searchParams.set('api_key', API_KEY);
-  url.searchParams.set('rating', CONTENT_RATING);
-  url.searchParams.set('bundle', CONTENT_BUNDLE);
-  url.searchParams.set('fields', GIF_FIELDS);
-
+  url.searchParams.set('key', TENOR_API_KEY);
+  url.searchParams.set('contentfilter', CONTENT_FILTER);
+  url.searchParams.set('media_filter', 'basic');
+  url.searchParams.set('ar_range', 'all');
   url.searchParams.set('limit', `${limit}`);
   if (offset != null) {
-    url.searchParams.set('offset', `${offset}`);
+    url.searchParams.set('pos', `${offset}`);
   }
 
   const response = await fetchJsonViaProxy({
@@ -176,22 +156,22 @@ export async function fetchGiphyTrending(
     signal,
   });
 
-  const results = parseUnknown(GiphyResultsSchema, response.data);
-  return normalizeGiphyResults(results);
+  const results = parseUnknown(TenorResultsSchema, response.data);
+  return normalizeTenorResults(results);
 }
 
 export function fetchGiphyFile(
-  giphyCdnUrl: string,
+  cdnUrl: string,
   signal?: AbortSignal
 ): Promise<Blob> {
-  const origin = getGifCdnUrlOrigin(giphyCdnUrl);
+  const origin = getGifCdnUrlOrigin(cdnUrl);
   if (origin == null) {
-    throw new Error('fetchGiphyFile: Cannot fetch invalid URL');
+    throw new Error('fetchGifFile: Cannot fetch invalid URL');
   }
   if (!isGifCdnUrlOriginAllowed(origin)) {
     throw new Error(
-      `fetchGiphyFile: Blocked unsupported url origin: ${origin}`
+      `fetchGifFile: Blocked unsupported url origin: ${origin}`
     );
   }
-  return fetchInSegments(giphyCdnUrl, fetchBytesViaProxy, signal);
+  return fetchInSegments(cdnUrl, fetchBytesViaProxy, signal);
 }

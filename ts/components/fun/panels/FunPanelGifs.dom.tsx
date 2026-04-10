@@ -619,14 +619,16 @@ export function FunPanelGifs({
                 'pointer-events-none'
               )}
             >
-              <img
-                alt={i18n(
-                  'icu:FunPanelGifs__GiphyAttribution__AccessibilityLabel'
-                )}
-                src="images/giphy-attribution.png"
-                width="160.25"
-                height="17.75"
-              />
+              <span
+                style={{
+                  color: 'white',
+                  fontSize: '12px',
+                  fontWeight: 'bold',
+                  letterSpacing: '0.5px',
+                }}
+              >
+                Powered by Tenor
+              </span>
             </motion.div>
           )}
         </AnimatePresence>
