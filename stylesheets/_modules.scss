@@ -2344,15 +2344,12 @@ button.ConversationDetails__action-button {
 
 // Module: Image
 
-// Discord-like: images with rounded corners, constrained size
+// Discord-like: images with rounded corners
 .module-image {
   position: relative;
   display: inline-block;
   vertical-align: middle;
   border-radius: 8px;
-  overflow: hidden;
-  max-width: 550px;
-  max-height: 350px;
 }
 
 .module-image--hidden {
