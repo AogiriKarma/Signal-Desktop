@@ -13,13 +13,12 @@
   flex-shrink: 0;
   padding-top: var(--title-bar-drag-area-height);
   user-select: none;
+  border-radius: 12px;
   @include mixins.light-theme {
     background-color: variables.$color-gray-04;
-    border-inline-end: 1px solid variables.$color-black-alpha-16;
   }
   @include mixins.dark-theme {
     background-color: variables.$color-gray-80;
-    border-inline-end: 1px solid variables.$color-white-alpha-16;
   }
 }
 

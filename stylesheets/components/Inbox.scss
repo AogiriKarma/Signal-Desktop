@@ -8,12 +8,14 @@
   display: flex;
   flex-direction: row;
   height: 100%;
+  gap: 6px;
 
   &__conversation-stack {
     flex-grow: 1;
     height: 100%;
     overflow: hidden;
     position: relative;
+    border-radius: 12px;
   }
 
   &__no-conversation-open {
