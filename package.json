@@ -127,7 +127,7 @@
     "@signalapp/libsignal-client": "0.97.3",
     "@signalapp/mute-state-change": "workspace:*",
     "@signalapp/ringrtc": "2.70.0",
-    "@signalapp/sqlcipher": "3.3.9",
+    "@signalapp/sqlcipher": "4.0.3",
     "@signalapp/types": "workspace:*",
     "@signalapp/windows-ucv": "workspace:*",
     "google-libphonenumber": "3.2.44"
