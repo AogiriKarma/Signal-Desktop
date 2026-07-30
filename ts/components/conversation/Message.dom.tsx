@@ -2411,13 +2411,7 @@ export class Message extends PureComponent<Props, State> {
             id="icu:message--deletedForEveryone--incoming"
             i18n={i18n}
             components={{
-              name: (
-                <ContactName
-                  preferFirstName
-                  title={author.title}
-                  firstName={author.firstName}
-                />
-              ),
+              name: <ContactName title={author.title} />,
             }}
           />
         );
