@@ -21,6 +21,7 @@ import {
 } from '@signalapp/libsignal-client';
 import { AccountAttributes } from '@signalapp/libsignal-client/dist/net.js';
 import type {
+  BackupAuth,
   ProvisioningConnection,
   ProvisioningConnectionListener,
   RegisterAccountResponse,
@@ -98,11 +99,7 @@ import { HOUR, MINUTE, SECOND } from '../util/durations/index.std.ts';
 import { safeParseNumber } from '../util/numbers.std.ts';
 import { getLibsignalNet } from './preconnect.preload.ts';
 import type { GroupSendToken } from '../types/GroupSendEndorsements.std.ts';
-import {
-  parseUnknown,
-  parseLoose,
-  safeParseUnknown,
-} from '../util/schemas.std.ts';
+import { parseUnknown, safeParseUnknown } from '../util/schemas.std.ts';
 import type {
   ProfileFetchAuthRequestOptions,
   ProfileFetchUnauthRequestOptions,
@@ -798,8 +795,6 @@ const CHAT_CALLS = {
   getIceServers: 'v2/calling/relays',
   getStickerPackUpload: 'v1/sticker/pack/form',
   getBackupCredentials: 'v1/archives/auth',
-  getBackupCDNCredentials: 'v1/archives/auth/read',
-  getBackupUploadForm: 'v1/archives/upload/form',
   getBackupMediaUploadForm: 'v1/archives/media/upload/form',
   keys: 'v2/keys',
   linkDevice: 'v1/devices/link',
@@ -819,7 +814,6 @@ const CHAT_CALLS = {
   registerCapabilities: 'v1/devices/capabilities',
   reportMessage: 'v1/messages/report',
   setBackupId: 'v1/archives/backupid',
-  setBackupSignatureKey: 'v1/archives/keys',
   signed: 'v2/keys/signed',
   storageToken: 'v1/storage/auth',
   subscriptions: 'v1/subscription',
@@ -1180,9 +1174,12 @@ const attachmentUploadFormResponse = z.object({
   signedUploadLocation: z.string(),
 });
 
-export type AttachmentUploadFormResponseType = z.infer<
-  typeof attachmentUploadFormResponse
->;
+export type AttachmentUploadFormType = {
+  cdn: number;
+  key: string;
+  headers: Record<string, string>;
+  signedUploadLocation: string;
+};
 
 const ServerKeyCountSchema = z.object({
   count: z.number(),
@@ -1328,11 +1325,6 @@ export type SetBackupIdOptionsType = Readonly<{
   mediaBackupAuthCredentialRequest: Uint8Array<ArrayBuffer>;
 }>;
 
-export type SetBackupSignatureKeyOptionsType = Readonly<{
-  headers: BackupPresentationHeadersType;
-  backupIdPublicKey: Uint8Array<ArrayBuffer>;
-}>;
-
 export type UploadBackupOptionsType = Readonly<{
   headers: BackupPresentationHeadersType;
   stream: Readable;
@@ -1431,18 +1423,9 @@ export type GetBackupCredentialsResponseType = z.infer<
   typeof getBackupCredentialsResponseSchema
 >;
 
-export type GetBackupCDNCredentialsOptionsType = Readonly<{
-  headers: BackupPresentationHeadersType;
-  cdnNumber: number;
+export type GetBackupCDNCredentialsResponseType = Readonly<{
+  headers: Record<string, string>;
 }>;
-
-export const getBackupCDNCredentialsResponseSchema = z.object({
-  headers: z.record(z.string(), z.string()),
-});
-
-export type GetBackupCDNCredentialsResponseType = z.infer<
-  typeof getBackupCDNCredentialsResponseSchema
->;
 
 export type GetBackupStreamOptionsType = Readonly<{
   cdn: number;
@@ -3291,7 +3274,7 @@ export async function getEphemeralBackupStream({
 
 export async function getBackupMediaUploadForm(
   headers: BackupPresentationHeadersType
-): Promise<AttachmentUploadFormResponseType> {
+): Promise<AttachmentUploadFormType> {
   return _ajax({
     host: 'chatService',
     call: 'getBackupMediaUploadForm',
@@ -3309,7 +3292,7 @@ export function createFetchForAttachmentUpload({
   signedUploadLocation,
   headers: uploadHeaders,
   cdn,
-}: AttachmentUploadFormResponseType): FetchFunctionType {
+}: AttachmentUploadFormType): FetchFunctionType {
   strictAssert(cdn === 3, 'Fetch can only be created for CDN 3');
   const { origin: expectedOrigin } = new URL(signedUploadLocation);
 
@@ -3345,33 +3328,38 @@ export function createFetchForAttachmentUpload({
   };
 }
 
-export async function getBackupUploadForm(
-  headers: BackupPresentationHeadersType
-): Promise<AttachmentUploadFormResponseType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'getBackupUploadForm',
-    httpType: 'GET',
-    unauthenticated: true,
-    accessKey: undefined,
-    groupSendToken: undefined,
-    headers,
-    responseType: 'json',
-    zodSchema: attachmentUploadFormResponse,
+export async function getBackupUploadForm({
+  auth,
+  uploadSize,
+}: {
+  auth: BackupAuth;
+  uploadSize: number;
+}): Promise<AttachmentUploadFormType> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
+    const { cdn, key, headers, signedUploadUrl } =
+      await unauthChat.getUploadForm({
+        auth,
+        uploadSize,
+      });
+
+    return {
+      cdn,
+      key,
+      headers: Object.fromEntries(headers.entries()),
+      signedUploadLocation: signedUploadUrl.toString(),
+    };
   });
 }
 
-export async function refreshBackup(
-  headers: BackupPresentationHeadersType
-): Promise<void> {
-  await _ajax({
-    host: 'chatService',
-    call: 'backup',
-    httpType: 'POST',
-    unauthenticated: true,
-    accessKey: undefined,
-    groupSendToken: undefined,
-    headers,
+export async function refreshBackup({
+  auth,
+}: {
+  auth: BackupAuth;
+}): Promise<void> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
+    return unauthChat.refreshBackup({ auth });
   });
 }
 
@@ -3394,20 +3382,19 @@ export async function getBackupCredentials({
 }
 
 export async function getBackupCDNCredentials({
-  headers,
+  auth,
   cdnNumber,
-}: GetBackupCDNCredentialsOptionsType): Promise<GetBackupCDNCredentialsResponseType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'getBackupCDNCredentials',
-    httpType: 'GET',
-    unauthenticated: true,
-    accessKey: undefined,
-    groupSendToken: undefined,
-    headers,
-    urlParameters: `?cdn=${cdnNumber}`,
-    responseType: 'json',
-    zodSchema: getBackupCDNCredentialsResponseSchema,
+}: {
+  auth: BackupAuth;
+  cdnNumber: number;
+}): Promise<GetBackupCDNCredentialsResponseType> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
+    const { headers: headersMap } = await unauthChat.getBackupCdnCredentials({
+      auth,
+      cdn: cdnNumber,
+    });
+    return { headers: Object.fromEntries(headersMap) };
   });
 }
 
@@ -3431,20 +3418,13 @@ export async function setBackupId({
 }
 
 export async function setBackupSignatureKey({
-  headers,
-  backupIdPublicKey,
-}: SetBackupSignatureKeyOptionsType): Promise<void> {
-  await _ajax({
-    host: 'chatService',
-    call: 'setBackupSignatureKey',
-    httpType: 'PUT',
-    unauthenticated: true,
-    accessKey: undefined,
-    groupSendToken: undefined,
-    headers,
-    jsonData: {
-      backupIdPublicKey: Bytes.toBase64(backupIdPublicKey),
-    },
+  auth,
+}: {
+  auth: BackupAuth;
+}): Promise<void> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
+    return unauthChat.setBackupPublicKey({ auth });
   });
 }
 
@@ -4396,26 +4376,26 @@ export type GetAttachmentUploadFormOptionsType = Readonly<{
 
 export async function getAttachmentUploadForm({
   uploadSize,
-}: GetAttachmentUploadFormOptionsType): Promise<AttachmentUploadFormResponseType> {
+}: GetAttachmentUploadFormOptionsType): Promise<AttachmentUploadFormType> {
   return _retry(async () => {
     const chat = await socketManager.getAuthenticatedApi();
     const { cdn, key, headers, signedUploadUrl } = await chat.getUploadForm({
       uploadSize: BigInt(uploadSize),
     });
 
-    return parseLoose(attachmentUploadFormResponse, {
+    return {
       cdn,
       key,
       headers: Object.fromEntries(headers.entries()),
       signedUploadLocation: signedUploadUrl.toString(),
-    });
+    };
   });
 }
 
 export async function putEncryptedAttachment(
   encryptedBin: (start: number, end?: number) => Readable,
   encryptedSize: number,
-  uploadForm: AttachmentUploadFormResponseType
+  uploadForm: AttachmentUploadFormType
 ): Promise<void> {
   const { signedUploadLocation, headers } = uploadForm;
 

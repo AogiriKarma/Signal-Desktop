@@ -15,7 +15,7 @@ import { backupsService } from '../services/backups/index.preload.ts';
 import { tusUpload } from './uploads/tusProtocol.node.ts';
 import { defaultFileReader } from './uploads/uploads.node.ts';
 import {
-  type AttachmentUploadFormResponseType,
+  type AttachmentUploadFormType,
   getAttachmentUploadForm,
   createFetchForAttachmentUpload,
   putEncryptedAttachment,
@@ -153,7 +153,7 @@ export async function encryptAndUploadAttachment({
   cdnNumber: number;
   encrypted: EncryptedAttachmentV2;
 }> {
-  let uploadForm: AttachmentUploadFormResponseType;
+  let uploadForm: AttachmentUploadFormType;
   let absoluteCiphertextPath: string | undefined;
 
   try {
@@ -211,7 +211,7 @@ export async function uploadFile({
 }: {
   absoluteCiphertextPath: string;
   ciphertextFileSize: number;
-  uploadForm: AttachmentUploadFormResponseType;
+  uploadForm: AttachmentUploadFormType;
 }): Promise<void> {
   if (CDNS_SUPPORTING_TUS.has(uploadForm.cdn)) {
     const fetchFn = createFetchForAttachmentUpload(uploadForm);
