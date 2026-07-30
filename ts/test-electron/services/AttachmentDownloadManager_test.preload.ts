@@ -302,17 +302,19 @@ describe('AttachmentDownloadManager', () => {
     });
   }
 
-  it('runs 3 jobs at a time in descending receivedAt order', async () => {
-    const jobs = await addJobs(5);
+  it('runs 6 jobs at a time in descending receivedAt order', async () => {
+    const jobs = await addJobs(7);
     // Confirm they are saved to DB
     const allJobs = await DataWriter.getNextAttachmentDownloadJobs({
       limit: 100,
     });
 
-    assert.strictEqual(allJobs.length, 5);
+    assert.strictEqual(allJobs.length, 7);
     assert.strictEqual(
       JSON.stringify(allJobs.map(job => job.messageId)),
       JSON.stringify([
+        'message-6',
+        'message-5',
         'message-4',
         'message-3',
         'message-2',
@@ -322,18 +324,23 @@ describe('AttachmentDownloadManager', () => {
     );
 
     await downloadManager?.start();
-    await waitForJobToBeStarted(assertAt(jobs, 2));
+    await waitForJobToBeStarted(assertAt(jobs, 1));
 
-    assert.strictEqual(runJob.callCount, 3);
+    assert.strictEqual(runJob.callCount, 6);
     assertRunJobCalledWith([
+      assertAt(jobs, 6),
+      assertAt(jobs, 5),
       assertAt(jobs, 4),
       assertAt(jobs, 3),
       assertAt(jobs, 2),
+      assertAt(jobs, 1),
     ]);
 
     await waitForJobToBeStarted(assertAt(jobs, 0));
-    assert.strictEqual(runJob.callCount, 5);
+    assert.strictEqual(runJob.callCount, 7);
     assertRunJobCalledWith([
+      assertAt(jobs, 6),
+      assertAt(jobs, 5),
       assertAt(jobs, 4),
       assertAt(jobs, 3),
       assertAt(jobs, 2),
@@ -343,7 +350,7 @@ describe('AttachmentDownloadManager', () => {
   });
 
   it('runs a job immediately if urgency is IMMEDIATE', async () => {
-    const jobs = await addJobs(6);
+    const jobs = await addJobs(7);
     await downloadManager?.start();
 
     const urgentJobForOldMessage = composeJob({
@@ -355,47 +362,57 @@ describe('AttachmentDownloadManager', () => {
 
     await waitForJobToBeStarted(urgentJobForOldMessage);
 
-    assert.strictEqual(runJob.callCount, 4);
+    assert.strictEqual(runJob.callCount, 7);
     assertRunJobCalledWith([
+      assertAt(jobs, 6),
       assertAt(jobs, 5),
       assertAt(jobs, 4),
       assertAt(jobs, 3),
+      assertAt(jobs, 2),
+      assertAt(jobs, 1),
       urgentJobForOldMessage,
     ]);
 
     await waitForJobToBeStarted(assertAt(jobs, 0));
-    assert.strictEqual(runJob.callCount, 7);
+    assert.strictEqual(runJob.callCount, 8);
     assertRunJobCalledWith([
+      assertAt(jobs, 6),
       assertAt(jobs, 5),
       assertAt(jobs, 4),
       assertAt(jobs, 3),
-      urgentJobForOldMessage,
       assertAt(jobs, 2),
       assertAt(jobs, 1),
+      urgentJobForOldMessage,
       assertAt(jobs, 0),
     ]);
   });
 
   it('prefers jobs for visible messages', async () => {
-    const jobs = await addJobs(5);
+    const jobs = await addJobs(8);
 
     downloadManager?.updateVisibleTimelineMessages(['message-0', 'message-1']);
 
     await downloadManager?.start();
 
     await waitForJobToBeStarted(assertAt(jobs, 4));
-    assert.strictEqual(runJob.callCount, 3);
+    assert.strictEqual(runJob.callCount, 6);
     assertRunJobCalledWith([
       assertAt(jobs, 0),
       assertAt(jobs, 1),
+      assertAt(jobs, 7),
+      assertAt(jobs, 6),
+      assertAt(jobs, 5),
       assertAt(jobs, 4),
     ]);
 
     await waitForJobToBeStarted(assertAt(jobs, 2));
-    assert.strictEqual(runJob.callCount, 5);
+    assert.strictEqual(runJob.callCount, 8);
     assertRunJobCalledWith([
       assertAt(jobs, 0),
       assertAt(jobs, 1),
+      assertAt(jobs, 7),
+      assertAt(jobs, 6),
+      assertAt(jobs, 5),
       assertAt(jobs, 4),
       assertAt(jobs, 3),
       assertAt(jobs, 2),
@@ -412,9 +429,9 @@ describe('AttachmentDownloadManager', () => {
     assert.strictEqual(runJob.callCount, 0);
 
     isInCall.callsFake(() => false);
-
+    const jobStartPromise = waitForJobToBeStarted(assertAt(jobs, 0));
     await advanceTime(2 * MINUTE);
-    await waitForJobToBeStarted(assertAt(jobs, 0));
+    await jobStartPromise;
     assert.strictEqual(runJob.callCount, 5);
   });
 

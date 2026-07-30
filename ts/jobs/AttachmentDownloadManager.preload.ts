@@ -101,7 +101,7 @@ export type NewAttachmentDownloadJobType = {
   urgency?: AttachmentDownloadUrgency;
 };
 
-const MAX_CONCURRENT_JOBS = 3;
+const MAX_CONCURRENT_JOBS = 6;
 
 const DEFAULT_RETRY_CONFIG = {
   maxAttempts: 5,

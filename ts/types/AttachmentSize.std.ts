@@ -23,9 +23,6 @@ export const getMaximumOutgoingVideoSize = (
       'getMaximumOutgoingVideoSize'
     );
   } catch (error) {
-    log.warn(
-      'Failed to parse integer out of global.videoAttachments.transcodeTargetBytes feature flag'
-    );
     return 100 * MEBIBYTE;
   }
 };
