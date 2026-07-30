@@ -601,7 +601,7 @@ function renderToast({
   if (toastType === ToastType.FileSize) {
     return (
       <Toast onClose={hideToast}>
-        {i18n('icu:fileSizeWarning', {
+        {i18n('icu:fileTooLargeWarning', {
           limit: toast.parameters.limit,
           units: toast.parameters.units,
         })}
@@ -611,7 +611,7 @@ function renderToast({
   if (toastType === ToastType.VideoFileSize) {
     return (
       <Toast onClose={hideToast}>
-        {i18n('icu:videoFileSizeWarning', {
+        {i18n('icu:videoFileTooLargeWarning', {
           limit: toast.parameters.limit,
           units: toast.parameters.units,
         })}
