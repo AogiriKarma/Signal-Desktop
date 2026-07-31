@@ -7,7 +7,7 @@ import type { z } from 'zod';
 import { createLogger } from '../logging/log.std.ts';
 import * as Errors from '../types/errors.std.ts';
 
-import { isStory } from './helpers.std.ts';
+import { isIncomingStory, isStory } from './helpers.std.ts';
 import { getAuthor } from './sources.preload.ts';
 import { messageHasPaymentEvent } from './payments.std.ts';
 import { getMessageIdForLogging } from '../util/idForLogging.preload.ts';
@@ -322,7 +322,7 @@ export async function handleDataMessage(
     // Drop an incoming GroupV2 message if we or the sender are not part of the group
     //   after applying the message's associated group changes.
     if (
-      type === 'incoming' &&
+      (type === 'incoming' || isIncomingStory(message.attributes, ourAci)) &&
       !isDirectConversation(conversation.attributes) &&
       hasGroupV2Prop &&
       (!areWeMember ||
