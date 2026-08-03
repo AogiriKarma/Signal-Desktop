@@ -32,6 +32,7 @@ import {
   setPhoneNumberDiscoverability,
 } from '../../textsecure/WebAPI.preload.ts';
 import { DEFAULT_CONVERSATION_COLOR } from '../../types/Colors.std.ts';
+import { SIGNAL_ACI } from '../../types/SignalConversation.std.ts';
 import { saveAttachmentToDisk } from '../../util/migrations.preload.ts';
 import { format } from '../../types/PhoneNumber.std.ts';
 import {
@@ -602,6 +603,10 @@ export function SmartPreferences(): JSX.Element | null {
         result.add(conversation);
       }
     });
+
+    if (items.releaseNotesChatBlocked) {
+      result.add(conversationSelector(SIGNAL_ACI));
+    }
 
     return Array.from(result);
   }, [items, conversationSelector]);

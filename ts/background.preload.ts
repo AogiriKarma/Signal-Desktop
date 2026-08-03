@@ -265,6 +265,7 @@ import {
 } from './services/allLoaders.preload.ts';
 import { checkFirstEnvelope } from './util/checkFirstEnvelope.dom.ts';
 import { BLOCKED_UUIDS_ID } from './textsecure/storage/Blocked.std.ts';
+import { isSignalServiceId } from './types/SignalConversation.std.ts';
 import { ReleaseNoteAndMegaphoneFetcher } from './services/releaseNoteAndMegaphoneFetcher.preload.ts';
 import { initMegaphoneCheckService } from './services/megaphone.preload.ts';
 import { BuildExpirationService } from './services/buildExpiration.preload.ts';
@@ -1446,6 +1447,18 @@ async function startApp(): Promise<void> {
         `Blocked uuids cleanup: Found ${diff} non-ACIs in blocked list. Removing.`
       );
       await itemStorage.put(BLOCKED_UUIDS_ID, blockedAcis);
+    }
+
+    if (blockedAcis.some(isSignalServiceId)) {
+      log.warn(
+        'Release notes chat block migration: found in blocked list. Moving.'
+      );
+      await itemStorage.blocked.setReleaseNotesChatBlocked(true);
+      await itemStorage.put(
+        BLOCKED_UUIDS_ID,
+        blockedAcis.filter(aci => !isSignalServiceId(aci))
+      );
+      log.info('Release notes chat block migration: complete');
     }
     log.info('Blocked uuids cleanup: complete');
 

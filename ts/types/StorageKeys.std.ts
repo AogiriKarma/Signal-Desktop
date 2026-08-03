@@ -226,6 +226,7 @@ export type StorageAccessType = {
   releaseNotesNextFetchTime: number;
   releaseNotesVersionWatermark: string;
   releaseNotesPreviousManifestHash: string;
+  releaseNotesChatBlocked: boolean;
 
   // If present - we are downloading backup
   backupDownloadPath: string;
@@ -426,6 +427,7 @@ export const STORAGE_KEYS_TO_PRESERVE_WHEN_PRIMARY = [
   'blocked-uuids',
   'read-receipt-setting',
   'blocked',
+  'releaseNotesChatBlocked',
   'device_name',
   'seenPinMessageDisappearingMessagesWarningCount',
   'usernameLastIntegrityCheck',

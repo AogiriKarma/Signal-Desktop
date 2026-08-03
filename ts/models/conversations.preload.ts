@@ -285,6 +285,7 @@ import type { Emoji } from '../axo/emoji.std.ts';
 import { canConversationOnlyBeMutedAlways } from '../conversations/canConversationOnlyBeMutedAlways.dom.ts';
 import { keyTransparency } from '../services/keyTransparency.preload.ts';
 import type { PollSource } from '../messageModifiers/Polls.preload.ts';
+import { isSignalServiceId } from '../types/SignalConversation.std.ts';
 
 const { compact, isNumber, throttle, debounce } = lodash;
 
@@ -1011,7 +1012,10 @@ export class ConversationModel {
     const wasBlocked = this.isBlocked();
 
     const serviceId = this.getServiceId();
-    if (serviceId && isAciString(serviceId)) {
+    if (isSignalConversation(this)) {
+      drop(itemStorage.blocked.setReleaseNotesChatBlocked(true));
+      blocked = true;
+    } else if (serviceId && isAciString(serviceId)) {
       drop(itemStorage.blocked.addBlockedServiceId(serviceId));
       blocked = true;
     }
@@ -1042,7 +1046,10 @@ export class ConversationModel {
     const wasBlocked = this.isBlocked();
 
     const serviceId = this.getServiceId();
-    if (serviceId && isAciString(serviceId)) {
+    if (serviceId && isSignalServiceId(serviceId)) {
+      drop(itemStorage.blocked.setReleaseNotesChatBlocked(false));
+      unblocked = true;
+    } else if (serviceId && isAciString(serviceId)) {
       drop(itemStorage.blocked.removeBlockedServiceId(serviceId));
       unblocked = true;
     }

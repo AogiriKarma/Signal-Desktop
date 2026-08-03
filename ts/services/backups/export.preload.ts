@@ -174,7 +174,7 @@ import {
   isTestOrMockEnvironment,
 } from '../../environment.std.ts';
 import { calculateLightness } from '../../util/getHSL.std.ts';
-import { isSignalServiceId } from '../../util/isSignalConversation.dom.ts';
+import { isSignalServiceId } from '../../types/SignalConversation.std.ts';
 import { isValidE164 } from '../../util/isValidE164.std.ts';
 import { toDayOfWeekArray } from '../../types/NotificationProfile.std.ts';
 import {

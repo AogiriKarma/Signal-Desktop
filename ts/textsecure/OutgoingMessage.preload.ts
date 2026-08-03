@@ -44,7 +44,7 @@ import { getKeysForServiceId } from './getKeysForServiceId.preload.ts';
 import { SignalService as Proto } from '../protobuf/index.std.ts';
 import { createLogger } from '../logging/log.std.ts';
 import type { GroupSendToken } from '../types/GroupSendEndorsements.std.ts';
-import { isSignalServiceId } from '../util/isSignalConversation.dom.ts';
+import { isSignalServiceId } from '../types/SignalConversation.std.ts';
 import * as Bytes from '../Bytes.std.ts';
 import { signalProtocolStore } from '../SignalProtocolStore.preload.ts';
 import { itemStorage } from './Storage.preload.ts';

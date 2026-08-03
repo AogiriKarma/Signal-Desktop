@@ -8,6 +8,7 @@ import * as Bytes from '../../Bytes.std.ts';
 import { isAciString } from '../../util/isAciString.std.ts';
 import type { StorageInterface } from '../../types/Storage.d.ts';
 import type { AciString, ServiceIdString } from '../../types/ServiceId.std.ts';
+import { isSignalServiceId } from '../../types/SignalConversation.std.ts';
 
 const { without } = lodash;
 
@@ -16,6 +17,7 @@ const log = createLogger('Blocked');
 const BLOCKED_NUMBERS_ID = 'blocked';
 export const BLOCKED_UUIDS_ID = 'blocked-uuids';
 const BLOCKED_GROUPS_ID = 'blocked-groups';
+const RELEASE_NOTES_CHAT_BLOCKED_ID = 'releaseNotesChatBlocked';
 
 export class Blocked {
   readonly #storage: StorageInterface;
@@ -61,6 +63,11 @@ export class Blocked {
   }
 
   public async addBlockedServiceId(serviceId: ServiceIdString): Promise<void> {
+    if (isSignalServiceId(serviceId)) {
+      log.error('Attempting to block release notes chat by serviceId');
+      return;
+    }
+
     const serviceIds = this.getBlockedServiceIds();
     if (serviceIds.includes(serviceId)) {
       return;
@@ -73,6 +80,11 @@ export class Blocked {
   public async removeBlockedServiceId(
     serviceId: ServiceIdString
   ): Promise<void> {
+    if (isSignalServiceId(serviceId)) {
+      log.error('Attempting to unblock release notes chat by serviceId');
+      return;
+    }
+
     const numbers = this.getBlockedServiceIds();
     if (!numbers.includes(serviceId)) {
       return;
@@ -80,6 +92,14 @@ export class Blocked {
 
     log.info('removing', serviceId, 'from blocked list');
     await this.#storage.put(BLOCKED_UUIDS_ID, without(numbers, serviceId));
+  }
+
+  public isReleaseNotesChatBlocked(): boolean {
+    return this.#storage.get(RELEASE_NOTES_CHAT_BLOCKED_ID, false);
+  }
+
+  public async setReleaseNotesChatBlocked(blocked: boolean): Promise<void> {
+    await this.#storage.put(RELEASE_NOTES_CHAT_BLOCKED_ID, blocked);
   }
 
   public getBlockedGroups(): Array<string> {

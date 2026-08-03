@@ -66,6 +66,7 @@ import {
 } from '../types/ServiceId.std.ts';
 import { normalizeAci } from '../util/normalizeAci.std.ts';
 import { isAciString } from '../util/isAciString.std.ts';
+import { isSignalServiceId } from '../types/SignalConversation.std.ts';
 import { calling } from '../services/calling.preload.ts';
 import { retryPlaceholders } from '../services/retryPlaceholders.std.ts';
 import * as Errors from '../types/errors.std.ts';
@@ -4023,6 +4024,9 @@ export default class MessageReceiver
       } else {
         throw new Error('No blocked acis');
       }
+
+      // Older desktops might send the release note serviceId incorrectly
+      acis = acis.filter(aci => !isSignalServiceId(aci));
 
       const { added, removed } = diffArraysAsSets(previous, acis);
       if (added.length) {
