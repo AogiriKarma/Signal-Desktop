@@ -58,7 +58,6 @@ export function CallingHeader({
                 iconWeight={300}
                 symbol={getCallViewModeIcon(callViewMode)}
                 label={i18n('icu:calling__change-view')}
-                tooltip={false}
               />
             </AxoDropdownMenu.Trigger>
             <AxoDropdownMenu.Content align="end">
