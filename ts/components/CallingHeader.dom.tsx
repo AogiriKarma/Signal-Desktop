@@ -57,7 +57,7 @@ export function CallingHeader({
                 size="lg"
                 iconWeight={300}
                 symbol={getCallViewModeIcon(callViewMode)}
-                label={i18n('icu:calling__change-view')}
+                label={i18n('icu:calling__change-layout')}
               />
             </AxoDropdownMenu.Trigger>
             <AxoDropdownMenu.Content align="end">
@@ -74,19 +74,19 @@ export function CallingHeader({
                   value={CallViewMode.Paginated}
                   symbol="grid"
                 >
-                  {i18n('icu:calling__view_mode--paginated')}
+                  {i18n('icu:calling__layout--paginated')}
                 </AxoDropdownMenu.RadioItem>
                 <AxoDropdownMenu.RadioItem
                   value={CallViewMode.Sidebar}
                   symbol="grid-sidebar"
                 >
-                  {i18n('icu:calling__view_mode--overflow')}
+                  {i18n('icu:calling__layout--overflow')}
                 </AxoDropdownMenu.RadioItem>
                 <AxoDropdownMenu.RadioItem
                   value={CallViewMode.Speaker}
                   symbol="sidebar"
                 >
-                  {i18n('icu:calling__view_mode--speaker')}
+                  {i18n('icu:calling__layout--speaker')}
                 </AxoDropdownMenu.RadioItem>
               </AxoDropdownMenu.RadioGroup>
             </AxoDropdownMenu.Content>
