@@ -54,7 +54,9 @@ import {
 import { getExistingAttachmentDataForReuse } from '../util/attachments/deduplicateAttachment.preload.ts';
 import { Emoji } from '../axo/emoji.std.ts';
 
-const { isNumber, reject, groupBy, values, chunk } = lodash;
+const { isNumber, groupBy, values, chunk } = lodash;
+
+export const MAX_STICKERS_PER_PACK = 1024;
 
 const log = createLogger('Stickers');
 
@@ -524,6 +526,57 @@ export async function removeEphemeralPack(packId: string): Promise<void> {
   await DataWriter.deleteStickerPack(packId);
 }
 
+export function parseStickerPackManifest(
+  packId: string,
+  proto: Proto.StickerPack
+): {
+  coverProto: Proto.StickerPack.Sticker.Params;
+  coverStickerId: number;
+  coverIncludedInList: boolean;
+  nonCoverStickers: Array<Proto.StickerPack.Sticker.Params>;
+  stickerCount: number;
+} {
+  let { stickers } = proto;
+
+  if (stickers.length > MAX_STICKERS_PER_PACK) {
+    log.warn(
+      `parseStickerPackManifest: pack ${redactPackId(packId)} has ` +
+        `${stickers.length} stickers, truncating to ${MAX_STICKERS_PER_PACK}`
+    );
+    stickers = stickers.slice(0, MAX_STICKERS_PER_PACK);
+  }
+
+  const stickerCount = stickers.length;
+
+  const coverProto = proto.cover || stickers[0];
+  const coverStickerId = dropNull(coverProto ? coverProto.id : undefined);
+
+  if (!coverProto || !isNumber(coverStickerId)) {
+    throw new Error(
+      `Sticker pack ${redactPackId(
+        packId
+      )} is malformed - it has no cover, and no stickers`
+    );
+  }
+
+  const coverSticker = stickers.find(sticker => sticker.id === coverStickerId);
+  const nonCoverStickers = stickers.filter(
+    sticker => sticker.id != null && sticker.id !== coverStickerId
+  );
+
+  if (coverSticker && !coverProto.emoji) {
+    coverProto.emoji = coverSticker.emoji;
+  }
+
+  return {
+    coverProto,
+    coverStickerId,
+    coverIncludedInList: nonCoverStickers.length < stickerCount,
+    nonCoverStickers,
+    stickerCount,
+  };
+}
+
 export async function downloadEphemeralPack(
   packId: string,
   packKey: string
@@ -569,32 +622,13 @@ export async function downloadEphemeralPack(
     const ciphertext = await getStickerPackManifest(packId);
     const plaintext = decryptSticker(packKey, ciphertext);
     const proto = Proto.StickerPack.decode(plaintext);
-    const firstStickerProto = proto.stickers ? proto.stickers[0] : null;
-    const stickerCount = proto.stickers.length;
-
-    const coverProto = proto.cover || firstStickerProto;
-    const coverStickerId = coverProto ? coverProto.id : null;
-
-    if (!coverProto || !isNumber(coverStickerId)) {
-      throw new Error(
-        `Sticker pack ${redactPackId(
-          packId
-        )} is malformed - it has no cover, and no stickers`
-      );
-    }
-
-    const nonCoverStickers = reject(
-      proto.stickers,
-      sticker => !isNumber(sticker.id) || sticker.id === coverStickerId
-    );
-    const coverSticker = proto.stickers.filter(
-      sticker => isNumber(sticker.id) && sticker.id === coverStickerId
-    );
-    if (coverSticker[0] && !coverProto.emoji) {
-      coverProto.emoji = coverSticker[0].emoji;
-    }
-
-    const coverIncludedInList = nonCoverStickers.length < stickerCount;
+    const {
+      coverProto,
+      coverStickerId,
+      coverIncludedInList,
+      nonCoverStickers,
+      stickerCount,
+    } = parseStickerPackManifest(packId, proto);
 
     const pack = {
       ...STICKER_PACK_DEFAULTS,
@@ -812,32 +846,13 @@ async function doDownloadStickerPack(
     const ciphertext = await getStickerPackManifest(packId);
     const plaintext = decryptSticker(packKey, ciphertext);
     const proto = Proto.StickerPack.decode(plaintext);
-    const firstStickerProto = proto.stickers ? proto.stickers[0] : undefined;
-    const stickerCount = proto.stickers.length;
+    const parsed = parseStickerPackManifest(packId, proto);
+    const { stickerCount } = parsed;
 
-    coverProto = proto.cover || firstStickerProto;
-    coverStickerId = dropNull(coverProto ? coverProto.id : undefined);
-
-    if (!coverProto || !isNumber(coverStickerId)) {
-      throw new Error(
-        `Sticker pack ${redactPackId(
-          packId
-        )} is malformed - it has no cover, and no stickers`
-      );
-    }
-
-    nonCoverStickers = reject(
-      proto.stickers,
-      sticker => !isNumber(sticker.id) || sticker.id === coverStickerId
-    );
-    const coverSticker = proto.stickers.filter(
-      sticker => isNumber(sticker.id) && sticker.id === coverStickerId
-    );
-    if (coverSticker[0] && !coverProto.emoji) {
-      coverProto.emoji = coverSticker[0].emoji;
-    }
-
-    coverIncludedInList = nonCoverStickers.length < stickerCount;
+    coverProto = parsed.coverProto;
+    coverStickerId = parsed.coverStickerId;
+    coverIncludedInList = parsed.coverIncludedInList;
+    nonCoverStickers = parsed.nonCoverStickers;
 
     // status can be:
     //   - 'known'
