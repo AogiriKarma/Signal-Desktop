@@ -297,6 +297,31 @@ ImageAttachment.args = {
   },
 };
 
+const LONG_UNBREAKABLE_TEXT = 'thisisthewordthatneverends'.repeat(10);
+
+export const LongUnbreakableWord = Template.bind({});
+LongUnbreakableWord.args = {
+  text: LONG_UNBREAKABLE_TEXT,
+};
+
+export const LongUnbreakableWordWithImageAttachment = Template.bind({});
+LongUnbreakableWordWithImageAttachment.args = {
+  text: LONG_UNBREAKABLE_TEXT,
+  rawAttachment: {
+    contentType: IMAGE_PNG,
+    fileName: 'sax.png',
+    isVoiceMessage: false,
+    thumbnail: {
+      contentType: IMAGE_PNG,
+      height: 100,
+      width: 100,
+      size: 100,
+      path: pngUrl,
+      url: pngUrl,
+    },
+  },
+};
+
 export const ImageAttachmentUndownloaded = Template.bind({});
 ImageAttachmentUndownloaded.args = {
   rawAttachment: {

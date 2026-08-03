@@ -57,6 +57,15 @@ export function WithLink(args: PropsType): JSX.Element {
   );
 }
 
+export function WithLongLink(args: PropsType): JSX.Element {
+  return (
+    <GroupDescription
+      {...args}
+      text={`Read more at https://example.com/${'some-very-long-path-segment/'.repeat(5)}?query=${'x'.repeat(100)}`}
+    />
+  );
+}
+
 export function KitchenSink(args: PropsType): JSX.Element {
   return (
     <GroupDescription
