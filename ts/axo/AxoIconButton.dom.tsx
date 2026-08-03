@@ -9,6 +9,7 @@ import { SpinnerV2 } from '../components/SpinnerV2.dom.tsx';
 import { AxoTooltip } from './AxoTooltip.dom.tsx';
 import { useAxoIntl } from './_internal/AxoIntl.dom.tsx';
 import { variants } from './_internal/variants.dom.tsx';
+import { forwardExtraPropsForRadix } from './_internal/props.dom.tsx';
 
 /**
  * A circular icon-only button with an accessible label and built-in tooltip.
@@ -266,6 +267,7 @@ export namespace AxoIconButton {
    */
   export const Root: FC<RootProps> = memo(props => {
     const {
+      ref,
       label,
       tooltip = true,
       variant,
@@ -306,7 +308,7 @@ export namespace AxoIconButton {
 
     const button = (
       <button
-        ref={props.ref}
+        ref={ref}
         type="button"
         aria-label={pending ? intl.get('AxoButton.Pending') : label}
         aria-pressed={pressed ?? undefined}
@@ -315,7 +317,7 @@ export namespace AxoIconButton {
         onMouseEnter={onMouseEnter}
         onFocus={onFocus}
         className={tw(baseStyles, Variants.get(variant), Sizes.get(size))}
-        {...rest}
+        {...forwardExtraPropsForRadix(rest)}
       >
         <span
           aria-hidden={pending ?? undefined}

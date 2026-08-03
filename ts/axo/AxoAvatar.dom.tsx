@@ -51,6 +51,7 @@ export namespace AxoAvatar {
     | 30
     | 32
     | 36
+    | 38
     | 40
     | 48
     | 52
@@ -70,6 +71,7 @@ export namespace AxoAvatar {
     30: tw('size-[30px]'),
     32: tw('size-[32px]'),
     36: tw('size-[36px]'),
+    38: tw('size-[38px]'),
     40: tw('size-[40px]'),
     48: tw('size-[48px]'),
     52: tw('size-[52px]'),
@@ -87,6 +89,7 @@ export namespace AxoAvatar {
     30: tw('border-[1.5px] p-[2px]'),
     32: tw('border-[1.5px] p-[2px]'),
     36: tw('border-[1.5px] p-[2px]'),
+    38: tw('border-[1.5px] p-[2px]'),
     40: tw('border-[1.5px] p-[2px]'),
     48: tw('border-2 p-[3px]'),
     52: tw('border-2 p-[3px]'),
@@ -602,6 +605,7 @@ export namespace AxoAvatar {
     30: 16,
     32: 16,
     36: 16,
+    38: 16,
     40: 24,
     48: 24,
     52: 24,

@@ -13,6 +13,7 @@ import {
   useAriaLabellingContext,
   useCreateAriaLabellingContext,
 } from './AriaLabellingContext.dom.tsx';
+import { forwardExtraPropsForRadix } from './props.dom.tsx';
 
 /**
  * Used to share styles/animations for SegmentedControls, Toolbar ToggleGroups,
@@ -124,7 +125,7 @@ export namespace ExperimentalAxoBaseSegmentedControl {
   }>;
 
   export const Root: FC<RootProps> = memo(props => {
-    const { value, variant, width, itemWidth, children, ...rest } = props;
+    const { ref, value, variant, width, itemWidth, children, ...rest } = props;
     const id = useId();
     const context = useMemo(() => {
       return { id, value, variant, rootWidth: width, itemWidth };
@@ -132,9 +133,9 @@ export namespace ExperimentalAxoBaseSegmentedControl {
     return (
       <RootContext.Provider value={context}>
         <div
-          ref={props.ref}
+          ref={ref}
           className={tw(RootStyles.get(variant), RootWidths.get(width))}
-          {...rest}
+          {...forwardExtraPropsForRadix(rest)}
         >
           {children}
         </div>
@@ -211,7 +212,7 @@ export namespace ExperimentalAxoBaseSegmentedControl {
           )}
           aria-labelledby={labelId}
           aria-describedby={descriptionId}
-          {...rest}
+          {...forwardExtraPropsForRadix(rest)}
         >
           {children}
           {isSelected && (

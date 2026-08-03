@@ -8,6 +8,7 @@ import { FlexWrapDetector } from './_internal/FlexWrapDetector.dom.tsx';
 import { variants } from './_internal/variants.dom.tsx';
 import { useAxoIntl } from './_internal/AxoIntl.dom.tsx';
 import { SpinnerV2 } from '../components/SpinnerV2.dom.tsx';
+import { forwardExtraPropsForRadix } from './_internal/props.dom.tsx';
 
 /**
  * An icon-button + text displayed as a stack, and can be placed in a row.
@@ -103,7 +104,7 @@ export namespace AxoStackedButton {
           aria-disabled={(pending || disabled) ?? undefined}
           aria-label={pending ? intl.get('AxoButton.Pending') : undefined}
           onClick={handleClick}
-          {...rest}
+          {...forwardExtraPropsForRadix(rest)}
         >
           <span
             className={tw(

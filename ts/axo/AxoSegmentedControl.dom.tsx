@@ -4,6 +4,7 @@ import type { FC, Ref, ReactNode } from 'react';
 import { memo, useCallback } from 'react';
 import { ToggleGroup } from 'radix-ui';
 import { ExperimentalAxoBaseSegmentedControl } from './_internal/AxoBaseSegmentedControl.dom.tsx';
+import { forwardExtraPropsForRadix } from './_internal/props.dom.tsx';
 
 /**
  * A row of mutually-exclusive buttons, used for tab-style navigation or
@@ -158,7 +159,12 @@ export namespace ExperimentalAxoSegmentedControl {
   export const Item: FC<ItemProps> = memo(props => {
     const { ref, value, children, ...rest } = props;
     return (
-      <ToggleGroup.Item asChild ref={ref} value={value} {...rest}>
+      <ToggleGroup.Item
+        asChild
+        ref={ref}
+        value={value}
+        {...forwardExtraPropsForRadix(rest)}
+      >
         <ExperimentalAxoBaseSegmentedControl.Item value={value}>
           {children}
         </ExperimentalAxoBaseSegmentedControl.Item>

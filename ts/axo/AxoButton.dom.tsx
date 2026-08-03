@@ -8,6 +8,7 @@ import type { SpinnerVariant } from '../components/SpinnerV2.dom.tsx';
 import { SpinnerV2 } from '../components/SpinnerV2.dom.tsx';
 import { useAxoIntl } from './_internal/AxoIntl.dom.tsx';
 import { variants } from './_internal/variants.dom.tsx';
+import { forwardExtraPropsForRadix } from './_internal/props.dom.tsx';
 
 /**
  * A text button with optional leading icon and trailing arrow.
@@ -370,7 +371,7 @@ export namespace AxoButton {
           SizeStyles.get(size),
           WidthStyles.get(width)
         )}
-        {...rest}
+        {...forwardExtraPropsForRadix(rest)}
       >
         <span
           aria-hidden={pending ?? undefined}
