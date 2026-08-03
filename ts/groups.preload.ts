@@ -6055,8 +6055,8 @@ async function applyGroupState({
   const ourAci = itemStorage.user.getCheckedAci();
 
   // members
-  const wasPreviouslyAMember = (result.membersV2 || []).some(
-    item => item.aci !== ourAci
+  const wasPreviouslyAMember = (group.membersV2 || []).some(
+    item => item.aci === ourAci
   );
   if (groupState.members) {
     result.membersV2 = groupState.members.map(member => {
