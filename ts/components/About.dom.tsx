@@ -44,8 +44,8 @@ export function About({
         <div className="module-splash-screen__logo module-splash-screen__logo--128" />
 
         <h1 className="About__Title">{i18n('icu:signalDesktop')}</h1>
-        <div className="version">{version}</div>
-        <div className="environment">{env}</div>
+        <div className="About__Body version">{version}</div>
+        <div className="About__Body environment">{env}</div>
         <br />
         <div>
           <a href="https://signal.org">signal.org</a>
