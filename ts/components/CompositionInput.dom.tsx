@@ -40,13 +40,11 @@ import { EmojiBlot, EmojiCompletion } from '../quill/emoji/index.dom.tsx';
 import type {
   DraftBodyRanges,
   HydratedBodyRangesType,
-  RangeNode,
 } from '../types/BodyRange.std.ts';
 import {
   BodyRange,
   areBodyRangesEqual,
-  collapseRangeTree,
-  insertRange,
+  collapseRangesToDisplayNodes,
 } from '../types/BodyRange.std.ts';
 import type { LocalizerType, ThemeType } from '../types/Util.std.ts';
 import type { ConversationType } from '../state/ducks/conversations.preload.ts';
@@ -243,13 +241,8 @@ export function CompositionInput(props: Props): ReactElement {
     bodyRanges: HydratedBodyRangesType
   ): Delta => {
     const textLength = text.length;
-    const tree = bodyRanges.reduce<ReadonlyArray<RangeNode>>((acc, range) => {
-      if (range.start < textLength) {
-        return insertRange(range, acc);
-      }
-      return acc;
-    }, []);
-    const nodes = collapseRangeTree({ tree, text });
+    const preparedRanges = bodyRanges.filter(range => range.start < textLength);
+    const nodes = collapseRangesToDisplayNodes(text, preparedRanges);
     const opsWithFormattingAndMentions = insertFormattingAndMentionsOps(nodes);
     const opsWithEmojis = insertEmojiOps(opsWithFormattingAndMentions, {});
 

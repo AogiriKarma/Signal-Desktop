@@ -9,14 +9,13 @@ import lodash from 'lodash';
 import { linkify, SUPPORTED_PROTOCOLS } from './Linkify.dom.tsx';
 import type {
   BodyRangesForDisplayType,
+  DisplayBodyRangeType,
   DisplayNode,
   HydratedBodyRangeMention,
-  RangeNode,
 } from '../../types/BodyRange.std.ts';
 import {
   BodyRange,
-  insertRange,
-  collapseRangeTree,
+  collapseRangesToDisplayNodes,
   groupContiguousSpoilers,
 } from '../../types/BodyRange.std.ts';
 import { AtMention } from './AtMention.dom.tsx';
@@ -79,34 +78,25 @@ export function MessageTextRenderer({
       BodyRange.isMention(range) ? 1 : 0
     );
 
-    // Create range tree, dropping bodyRanges that don't apply. Read More means truncated
-    //   strings.
+    // Prepare ranges (assign spoiler ids, drop ones that don't apply
     let spoilerCount = 0;
-    const tree = sortedRanges.reduce<ReadonlyArray<RangeNode>>(
-      (acc, range) => {
-        if (
-          BodyRange.isFormatting(range) &&
-          range.style === BodyRange.Style.SPOILER
-        ) {
-          spoilerCount += 1;
-          return insertRange(
-            {
-              ...range,
-              spoilerId: spoilerCount,
-            },
-            acc
-          );
-        }
-        if (range.start < textLength) {
-          return insertRange(range, acc);
-        }
-        return acc;
-      },
-      links.map(b => ({ ...b, ranges: [] }))
-    );
+    const preparedRanges: Array<DisplayBodyRangeType> = [];
+    for (const range of sortedRanges) {
+      if (
+        BodyRange.isFormatting(range) &&
+        range.style === BodyRange.Style.SPOILER
+      ) {
+        spoilerCount += 1;
+        preparedRanges.push({ ...range, spoilerId: spoilerCount });
+      } else if (range.start < textLength) {
+        preparedRanges.push(range);
+      }
+    }
 
-    // Turn tree into flat list for proper spoiler rendering
-    const nodes = collapseRangeTree({ tree, text: messageText });
+    const nodes = collapseRangesToDisplayNodes(messageText, [
+      ...links,
+      ...preparedRanges,
+    ]);
 
     // Group all contigusous spoilers to create one parent spoiler element in the DOM
     return groupContiguousSpoilers(nodes);
