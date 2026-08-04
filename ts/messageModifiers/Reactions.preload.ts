@@ -50,6 +50,7 @@ import {
 import { maybeNotify } from '../messages/maybeNotify.preload.ts';
 import { itemStorage } from '../textsecure/Storage.preload.ts';
 import type { Emoji } from '../axo/emoji.std.ts';
+import { isValidSenderAciForConversation } from './helpers/isValidSenderAciForConversation.preload.ts';
 
 const { maxBy } = lodash;
 
@@ -179,6 +180,38 @@ export function isMessageAMatchForReaction({
     return true;
   }
 
+  const messageConversation = window.ConversationController.get(
+    message.conversationId
+  );
+
+  if (!messageConversation) {
+    return false;
+  }
+
+  if (
+    messageConversation.isBlocked() ||
+    reactionSenderConversation.isBlocked()
+  ) {
+    return false;
+  }
+
+  // Stories sent to a distribution list are stored in our own conversation (see
+  //   sendStoryMessage), which would never report one of their recipients as a member.
+  const isOutgoingDistributionListStory =
+    isOutgoingStory(message, ourAci) && message.storyDistributionListId != null;
+
+  const reactionSenderAci = reactionSenderConversation.getAci();
+  if (!reactionSenderAci) {
+    return false;
+  }
+
+  if (
+    !isValidSenderAciForConversation(messageConversation, reactionSenderAci) &&
+    !isOutgoingDistributionListStory
+  ) {
+    return false;
+  }
+
   if (isOutgoing(message) || isOutgoingStory(message, ourAci)) {
     const sendStateByConversationId = getPropForTimestamp({
       log,
@@ -202,24 +235,8 @@ export function isMessageAMatchForReaction({
     return isSent(sendState.status);
   }
 
-  if (isIncoming(message) || isIncomingStory(message, ourAci)) {
-    const messageConversation = window.ConversationController.get(
-      message.conversationId
-    );
-
-    if (!messageConversation) {
-      return false;
-    }
-
-    const reactionSenderServiceId = reactionSenderConversation.getServiceId();
-    return (
-      reactionSenderServiceId != null &&
-      messageConversation.hasMember(reactionSenderServiceId)
-    );
-  }
-
   // Only incoming, outgoing, and story messages can be reacted to
-  return false;
+  return isIncoming(message) || isIncomingStory(message, ourAci);
 }
 
 export async function onReaction(

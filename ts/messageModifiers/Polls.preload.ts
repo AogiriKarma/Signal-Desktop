@@ -24,6 +24,7 @@ import { getMessageIdForLogging } from '../util/idForLogging.preload.ts';
 import { drop } from '../util/drop.std.ts';
 import { maybeNotify } from '../messages/maybeNotify.preload.ts';
 import type { DurationInSeconds } from '../util/durations/duration-in-seconds.std.ts';
+import { isValidSenderAciForConversation } from './helpers/isValidSenderAciForConversation.preload.ts';
 
 const log = createLogger('Polls');
 
@@ -115,6 +116,26 @@ function doesVoteModifierMatchMessage({
     return true;
   }
 
+  const messageConversation = window.ConversationController.get(
+    message.conversationId
+  );
+  if (!messageConversation) {
+    return false;
+  }
+
+  if (messageConversation.isBlocked() || voteSenderConversation.isBlocked()) {
+    return false;
+  }
+
+  const voteSenderAci = voteSenderConversation.getAci();
+  if (!voteSenderAci) {
+    return false;
+  }
+
+  if (!isValidSenderAciForConversation(messageConversation, voteSenderAci)) {
+    return false;
+  }
+
   if (isOutgoing(message)) {
     const sendStateByConversationId = getPropForTimestamp({
       log,
@@ -127,22 +148,7 @@ function doesVoteModifierMatchMessage({
     return !!sendState && isSent(sendState.status);
   }
 
-  if (isIncoming(message)) {
-    const messageConversation = window.ConversationController.get(
-      message.conversationId
-    );
-    if (!messageConversation) {
-      return false;
-    }
-
-    const voteSenderServiceId = voteSenderConversation.getServiceId();
-    return (
-      voteSenderServiceId != null &&
-      messageConversation.hasMember(voteSenderServiceId)
-    );
-  }
-
-  return false;
+  return isIncoming(message);
 }
 
 async function findPollMessage({

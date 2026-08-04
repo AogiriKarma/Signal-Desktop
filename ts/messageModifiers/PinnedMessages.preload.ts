@@ -221,6 +221,10 @@ function validatePinnedMessageTarget(
 ): { error: string } | null {
   const message = target.targetMessage.attributes;
 
+  if (target.targetConversation.isBlocked()) {
+    return { error: 'Target conversation is blocked' };
+  }
+
   if (!isValidSenderAciForConversation(target.targetConversation, sourceAci)) {
     return { error: 'Sender cannot send to target conversation' };
   }
