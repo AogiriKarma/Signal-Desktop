@@ -9,6 +9,7 @@ import {
   BackupKey,
 } from '@signalapp/libsignal-client/dist/AccountKeys.js';
 import type { RegisterAccountResponse } from '@signalapp/libsignal-client/dist/net';
+import { Base64 } from '@signalapp/types';
 
 import EventTarget from './EventTarget.std.ts';
 import {
@@ -295,7 +296,7 @@ export default class AccountManager extends EventTarget {
   encryptDeviceName(
     name: string,
     identityKey: KeyPairType
-  ): string | undefined {
+  ): Base64 | undefined {
     if (!name) {
       return undefined;
     }
@@ -306,17 +307,17 @@ export default class AccountManager extends EventTarget {
       syntheticIv: encrypted.syntheticIv,
       ciphertext: encrypted.ciphertext,
     });
-    return Bytes.toBase64(bytes);
+    return Base64.fromBytes(bytes);
   }
 
-  async decryptDeviceName(base64: string): Promise<string> {
+  async decryptDeviceName(base64: Base64): Promise<string> {
     const ourAci = itemStorage.user.getCheckedAci();
     const identityKey = signalProtocolStore.getIdentityKeyPair(ourAci);
     if (!identityKey) {
       throw new Error('decryptDeviceName: No identity key pair!');
     }
 
-    const bytes = Bytes.fromBase64(base64);
+    const bytes = Base64.toBytes(base64);
     const proto = Proto.DeviceName.decode(bytes);
     strictAssert(
       proto.ephemeralPublic,
@@ -341,7 +342,7 @@ export default class AccountManager extends EventTarget {
   async _encryptDeviceCreatedAt(
     createdAt: number,
     deviceId: number
-  ): Promise<string> {
+  ): Promise<Base64> {
     const ourAci = itemStorage.user.getCheckedAci();
     const identityKey = signalProtocolStore.getIdentityKeyPair(ourAci);
     const registrationId =
@@ -356,11 +357,11 @@ export default class AccountManager extends EventTarget {
       identityKey.publicKey
     );
 
-    return Bytes.toBase64(createdAtCiphertextBytes);
+    return Base64.fromBytes(createdAtCiphertextBytes);
   }
 
   async decryptDeviceCreatedAt(
-    createdAtCiphertextBase64: string,
+    createdAtCiphertextBase64: Base64,
     deviceId: number
   ): Promise<number> {
     const ourAci = itemStorage.user.getCheckedAci();
@@ -405,7 +406,10 @@ export default class AccountManager extends EventTarget {
     const base64 = this.encryptDeviceName(deviceName || '', identityKeyPair);
 
     if (base64) {
-      await updateDeviceName(base64);
+      await updateDeviceName({
+        deviceId: itemStorage.user.getCheckedDeviceId(),
+        encryptedName: Base64.toBytes(base64),
+      });
       await itemStorage.user.setDeviceNameEncrypted();
     }
   }

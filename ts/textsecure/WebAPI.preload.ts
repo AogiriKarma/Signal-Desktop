@@ -22,6 +22,7 @@ import {
 import { AccountAttributes } from '@signalapp/libsignal-client/dist/net.js';
 import type {
   BackupAuth,
+  LinkedDevice,
   ProvisioningConnection,
   ProvisioningConnectionListener,
   RegisterAccountResponse,
@@ -819,7 +820,6 @@ const CHAT_CALLS = {
   subscriptions: 'v1/subscription',
   subscriptionConfiguration: 'v1/subscription/configuration',
   transferArchive: 'v1/devices/transfer_archive',
-  updateDeviceName: 'v1/accounts/name',
   username: 'v1/accounts/username_hash',
   reserveUsername: 'v1/accounts/username_hash/reserve',
   confirmUsername: 'v1/accounts/username_hash/confirm',
@@ -1003,19 +1003,6 @@ export type GetAccountForUsernameOptionsType = Readonly<{
 }>;
 
 export type GetAccountForUsernameResultType = AciString | null;
-
-const getDevicesResultZod = z.object({
-  devices: z.array(
-    z.object({
-      id: z.number(),
-      name: z.string().nullish(), // primary devices may not have a name
-      lastSeen: z.number().nullish(),
-      createdAtCiphertext: z.string(),
-    })
-  ),
-});
-
-export type GetDevicesResultType = z.infer<typeof getDevicesResultZod>;
 
 export type GetIceServersResultType = Readonly<{
   relays?: ReadonlyArray<IceServerGroupType>;
@@ -3094,24 +3081,23 @@ export async function disableRegistrationLock(): Promise<void> {
   });
 }
 
-export async function getDevices(): Promise<GetDevicesResultType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'devices',
-    httpType: 'GET',
-    responseType: 'json',
-    zodSchema: getDevicesResultZod,
+export async function getDevices(): Promise<ReadonlyArray<LinkedDevice>> {
+  return _retry(async () => {
+    const chat = await socketManager.getAuthenticatedApi();
+    return chat.getDevices();
   });
 }
 
-export async function updateDeviceName(deviceName: string): Promise<void> {
-  await _ajax({
-    host: 'chatService',
-    call: 'updateDeviceName',
-    httpType: 'PUT',
-    jsonData: {
-      deviceName,
-    },
+export async function updateDeviceName({
+  deviceId,
+  encryptedName,
+}: {
+  deviceId: number;
+  encryptedName: Uint8Array<ArrayBuffer>;
+}): Promise<void> {
+  await _retry(async () => {
+    const chat = await socketManager.getAuthenticatedApi();
+    await chat.setDeviceName({ deviceId, encryptedName });
   });
 }
 
