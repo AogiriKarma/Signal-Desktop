@@ -374,7 +374,7 @@ export function Linkify(props: Props): JSX.Element {
 
       const { url, text: originalText } = match;
       count += 1;
-      if (SUPPORTED_PROTOCOLS.test(url) && !isLinkSneaky(url)) {
+      if (SUPPORTED_PROTOCOLS.test(url) && isLinkSneaky(url) !== 'yes') {
         results.push(
           <a key={count} href={url}>
             {originalText}

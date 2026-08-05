@@ -261,7 +261,7 @@ function renderNode({
   if (
     node.url &&
     SUPPORTED_PROTOCOLS.test(node.url) &&
-    !isLinkSneaky(node.url)
+    isLinkSneaky(node.url) !== 'yes'
   ) {
     return (
       <a
