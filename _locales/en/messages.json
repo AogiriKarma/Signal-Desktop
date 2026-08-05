@@ -1010,11 +1010,11 @@
   },
   "icu:fileSizeWarning": {
     "messageformat": "Sorry, the selected file exceeds message size restrictions. {limit, number}{units}",
-    "description": "Shown in a toast if the user tries to attach too-large file"
+    "description": "(Deleted 2026/08/05) Shown in a toast if the user tries to attach too-large file"
   },
   "icu:videoFileSizeWarning": {
     "messageformat": "Sorry, the selected video file exceeds message size restrictions. {limit, number}{units}",
-    "description": "Shown in a toast if the user tries to attach too-large video file"
+    "description": "(Deleted 2026/08/05) Shown in a toast if the user tries to attach too-large video file"
   },
   "icu:fileTooLargeWarning": {
     "messageformat": "Can’t send this file because it’s too large. You can send files up to {limit, number}{units}.",
@@ -5156,19 +5156,19 @@
   },
   "icu:calling__change-view": {
     "messageformat": "Change view",
-    "description": "Tooltip for changing the in-call layout of remote participants in a group call"
+    "description": "(Deleted 2026/08/05) Tooltip for changing the in-call layout of remote participants in a group call"
   },
   "icu:calling__view_mode--paginated": {
     "messageformat": "Grid view",
-    "description": "Label for option to view participants in a group call in a paginated grid view"
+    "description": "(Deleted 2026/08/05) Label for option to view participants in a group call in a paginated grid view"
   },
   "icu:calling__view_mode--overflow": {
     "messageformat": "Sidebar view",
-    "description": "Label for option to view participants in a group call where videos that don't fit onto the page are put into a scrollable overflow sidebar"
+    "description": "(Deleted 2026/08/05) Label for option to view participants in a group call where videos that don't fit onto the page are put into a scrollable overflow sidebar"
   },
   "icu:calling__view_mode--speaker": {
     "messageformat": "Speaker view",
-    "description": "Label for option to view participants where only the current speaker's video is fully visible and all others are put into a scrollable overflow sidebar"
+    "description": "(Deleted 2026/08/05) Label for option to view participants where only the current speaker's video is fully visible and all others are put into a scrollable overflow sidebar"
   },
   "icu:calling__view_mode--updated": {
     "messageformat": "View updated",

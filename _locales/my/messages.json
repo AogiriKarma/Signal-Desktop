@@ -12,7 +12,7 @@
     "messageformat": "ပိတ်မည်"
   },
   "icu:AxoPasswordField.Reveal": {
-    "messageformat": "Show Password"
+    "messageformat": "စကားဝှက်ကို ပြရန်"
   },
   "icu:AxoTextField.Clear": {
     "messageformat": "ဖယ်ရှားမည်"
@@ -754,6 +754,12 @@
   },
   "icu:videoFileSizeWarning": {
     "messageformat": "ရွေးချယ်ထားသော ဗီဒီယိုဖိုင်သည် မက်ဆေ့ချ်အရွယ်အစား ကန့်သတ်ချက်ထက် ကျော်လွန်နေပါသည်။ {limit,number}{units}"
+  },
+  "icu:fileTooLargeWarning": {
+    "messageformat": "Can’t send this file because it’s too large. You can send files up to {limit,number}{units}."
+  },
+  "icu:videoFileTooLargeWarning": {
+    "messageformat": "Can’t send this video file because it’s too large. You can send video files up to {limit,number}{units}."
   },
   "icu:unableToLoadAttachment": {
     "messageformat": "ရွေးချယ်ထား‌သော ပူးတွဲဖိုင်ကို ထည့်သွင်းလုပ်ဆောင်၍ မရနိုင်ပါ။"
@@ -3892,6 +3898,18 @@
   },
   "icu:calling__view_mode--updated": {
     "messageformat": "မြင်ကွင်းအသစ်ဖြင့် ကြည့်ရန်"
+  },
+  "icu:calling__change-layout": {
+    "messageformat": "Change layout"
+  },
+  "icu:calling__layout--paginated": {
+    "messageformat": "Grid"
+  },
+  "icu:calling__layout--overflow": {
+    "messageformat": "Sidebar"
+  },
+  "icu:calling__layout--speaker": {
+    "messageformat": "Speaker"
   },
   "icu:calling__SelectPresentingSourcesModal--title": {
     "messageformat": "သင့်စခရင်ကို မျှဝေရန်"

@@ -12,7 +12,7 @@
     "messageformat": "닫기"
   },
   "icu:AxoPasswordField.Reveal": {
-    "messageformat": "Show Password"
+    "messageformat": "비밀번호 표시"
   },
   "icu:AxoTextField.Clear": {
     "messageformat": "지우기"
@@ -754,6 +754,12 @@
   },
   "icu:videoFileSizeWarning": {
     "messageformat": "선택된 동영상 파일은 메시지의 최대 허용 용량을 초과했습니다. {limit,number}{units}"
+  },
+  "icu:fileTooLargeWarning": {
+    "messageformat": "Can’t send this file because it’s too large. You can send files up to {limit,number}{units}."
+  },
+  "icu:videoFileTooLargeWarning": {
+    "messageformat": "Can’t send this video file because it’s too large. You can send video files up to {limit,number}{units}."
   },
   "icu:unableToLoadAttachment": {
     "messageformat": "선택된 첨부 파일을 불러올 수 없습니다."
@@ -3892,6 +3898,18 @@
   },
   "icu:calling__view_mode--updated": {
     "messageformat": "보기 업데이트 완료"
+  },
+  "icu:calling__change-layout": {
+    "messageformat": "Change layout"
+  },
+  "icu:calling__layout--paginated": {
+    "messageformat": "Grid"
+  },
+  "icu:calling__layout--overflow": {
+    "messageformat": "Sidebar"
+  },
+  "icu:calling__layout--speaker": {
+    "messageformat": "Speaker"
   },
   "icu:calling__SelectPresentingSourcesModal--title": {
     "messageformat": "화면 공유"

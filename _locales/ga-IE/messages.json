@@ -12,7 +12,7 @@
     "messageformat": "Dún"
   },
   "icu:AxoPasswordField.Reveal": {
-    "messageformat": "Show Password"
+    "messageformat": "Taispeáin an Pasfhocal"
   },
   "icu:AxoTextField.Clear": {
     "messageformat": "Glan"
@@ -754,6 +754,12 @@
   },
   "icu:videoFileSizeWarning": {
     "messageformat": "Ár leithscéal, sáraíonn an físchomhad roghnaithe srianta le méid na teachtaireachta. {limit,number}{units}"
+  },
+  "icu:fileTooLargeWarning": {
+    "messageformat": "Can’t send this file because it’s too large. You can send files up to {limit,number}{units}."
+  },
+  "icu:videoFileTooLargeWarning": {
+    "messageformat": "Can’t send this video file because it’s too large. You can send video files up to {limit,number}{units}."
   },
   "icu:unableToLoadAttachment": {
     "messageformat": "Ní féidir an ceangaltán roghnaithe a lódáil."
@@ -3892,6 +3898,18 @@
   },
   "icu:calling__view_mode--updated": {
     "messageformat": "Amharc nuashonruithe"
+  },
+  "icu:calling__change-layout": {
+    "messageformat": "Change layout"
+  },
+  "icu:calling__layout--paginated": {
+    "messageformat": "Grid"
+  },
+  "icu:calling__layout--overflow": {
+    "messageformat": "Sidebar"
+  },
+  "icu:calling__layout--speaker": {
+    "messageformat": "Speaker"
   },
   "icu:calling__SelectPresentingSourcesModal--title": {
     "messageformat": "Comhroinn do scáileán"

@@ -12,7 +12,7 @@
     "messageformat": "మూసివెయ్యి"
   },
   "icu:AxoPasswordField.Reveal": {
-    "messageformat": "Show Password"
+    "messageformat": "పాస్‌వర్డ్‌ను చూపించండి"
   },
   "icu:AxoTextField.Clear": {
     "messageformat": "స్పష్టమైన"
@@ -754,6 +754,12 @@
   },
   "icu:videoFileSizeWarning": {
     "messageformat": "క్షమించండి, ఎంచుకున్న వీడియో ఫైల్ సందేశ పరిమాణ పరిమితులను మించిపోయింది. {limit,number}{units}"
+  },
+  "icu:fileTooLargeWarning": {
+    "messageformat": "Can’t send this file because it’s too large. You can send files up to {limit,number}{units}."
+  },
+  "icu:videoFileTooLargeWarning": {
+    "messageformat": "Can’t send this video file because it’s too large. You can send video files up to {limit,number}{units}."
   },
   "icu:unableToLoadAttachment": {
     "messageformat": "ఎంచుకున్న అటాచ్‌మెంట్‌ను లోడ్ చేయడం సాధ్యం కాలేదు."
@@ -3892,6 +3898,18 @@
   },
   "icu:calling__view_mode--updated": {
     "messageformat": "వీక్షణ అప్‌డేట్ చేయబడింది"
+  },
+  "icu:calling__change-layout": {
+    "messageformat": "Change layout"
+  },
+  "icu:calling__layout--paginated": {
+    "messageformat": "Grid"
+  },
+  "icu:calling__layout--overflow": {
+    "messageformat": "Sidebar"
+  },
+  "icu:calling__layout--speaker": {
+    "messageformat": "Speaker"
   },
   "icu:calling__SelectPresentingSourcesModal--title": {
     "messageformat": "మీ స్క్రీన్‌ను భాగస్వామ్యం చేయండి"

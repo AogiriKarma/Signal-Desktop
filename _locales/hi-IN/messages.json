@@ -12,7 +12,7 @@
     "messageformat": "बंद करें"
   },
   "icu:AxoPasswordField.Reveal": {
-    "messageformat": "Show Password"
+    "messageformat": "पासवर्ड दिखाएं"
   },
   "icu:AxoTextField.Clear": {
     "messageformat": "हटाएं"
@@ -754,6 +754,12 @@
   },
   "icu:videoFileSizeWarning": {
     "messageformat": "माफ़ करें, चुनी गई वीडियो फ़ाइल, मैसेज के लिए साइज़ की तय सीमा से बड़ी है। {limit,number}{units}"
+  },
+  "icu:fileTooLargeWarning": {
+    "messageformat": "Can’t send this file because it’s too large. You can send files up to {limit,number}{units}."
+  },
+  "icu:videoFileTooLargeWarning": {
+    "messageformat": "Can’t send this video file because it’s too large. You can send video files up to {limit,number}{units}."
   },
   "icu:unableToLoadAttachment": {
     "messageformat": "चुना हुआ अटैचमेंट लोड नहीं हो पाया।"
@@ -3892,6 +3898,18 @@
   },
   "icu:calling__view_mode--updated": {
     "messageformat": "व्यू अपडेट किया गया"
+  },
+  "icu:calling__change-layout": {
+    "messageformat": "Change layout"
+  },
+  "icu:calling__layout--paginated": {
+    "messageformat": "Grid"
+  },
+  "icu:calling__layout--overflow": {
+    "messageformat": "Sidebar"
+  },
+  "icu:calling__layout--speaker": {
+    "messageformat": "Speaker"
   },
   "icu:calling__SelectPresentingSourcesModal--title": {
     "messageformat": "स्क्रीन शेयर करें"

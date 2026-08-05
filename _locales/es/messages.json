@@ -12,7 +12,7 @@
     "messageformat": "Cerrar"
   },
   "icu:AxoPasswordField.Reveal": {
-    "messageformat": "Show Password"
+    "messageformat": "Mostrar contraseña"
   },
   "icu:AxoTextField.Clear": {
     "messageformat": "Eliminar"
@@ -141,7 +141,7 @@
     "messageformat": "&Archivo"
   },
   "icu:mainMenuCreateStickers": {
-    "messageformat": "Crear/subir paquete de stickers"
+    "messageformat": "Crear o subir paquete de stickers"
   },
   "icu:mainMenuEdit": {
     "messageformat": "&Editar"
@@ -754,6 +754,12 @@
   },
   "icu:videoFileSizeWarning": {
     "messageformat": "El vídeo que has seleccionado excede el límite de tamaño permitido. {limit,number} {units}"
+  },
+  "icu:fileTooLargeWarning": {
+    "messageformat": "Can’t send this file because it’s too large. You can send files up to {limit,number}{units}."
+  },
+  "icu:videoFileTooLargeWarning": {
+    "messageformat": "Can’t send this video file because it’s too large. You can send video files up to {limit,number}{units}."
   },
   "icu:unableToLoadAttachment": {
     "messageformat": "No se ha podido cargar el archivo seleccionado."
@@ -3892,6 +3898,18 @@
   },
   "icu:calling__view_mode--updated": {
     "messageformat": "Vista actualizada"
+  },
+  "icu:calling__change-layout": {
+    "messageformat": "Change layout"
+  },
+  "icu:calling__layout--paginated": {
+    "messageformat": "Grid"
+  },
+  "icu:calling__layout--overflow": {
+    "messageformat": "Sidebar"
+  },
+  "icu:calling__layout--speaker": {
+    "messageformat": "Speaker"
   },
   "icu:calling__SelectPresentingSourcesModal--title": {
     "messageformat": "Comparte tu pantalla"
