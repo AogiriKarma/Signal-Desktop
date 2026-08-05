@@ -66,6 +66,9 @@ overrides:
   'react-popper@2.3.0>react-dom': '19.2.4'
   'react-popper@2.3.0>react': '19.2.4'
   'thenify-all>thenify': '3.3.1'
+  electron@<39.8.10: ^39.8.10
+  electron@<39.8.9: ^39.8.9
+  ip-address@<=10.3.0: ^10.3.1
 
 allowUnusedPatches: false
 ignorePatchFailures: false
@@ -102,7 +105,8 @@ allowBuilds:
   '@swc/core@1.10.16': true
   '@tailwindcss/oxide@4.3.0': true
   'electron@23.3.13': false # duplicate package
-  'electron@42.3.0': true
+  'electron@39.8.10': true # duplicate package through react-devtools
+  'electron@43.0.0': true
   'fs-xattr@0.4.0': true
 
   # Disabled Builds: Use wildcard version
