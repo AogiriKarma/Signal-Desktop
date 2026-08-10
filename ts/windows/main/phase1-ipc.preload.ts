@@ -33,6 +33,7 @@ import { ToastType } from '../../types/Toast.dom.tsx';
 import { ConversationController } from '../../ConversationController.preload.ts';
 import { isEnabled } from '../../RemoteConfig.dom.ts';
 import { itemStorage } from '../../textsecure/Storage.preload.ts';
+import { BackupLevel } from '../../services/backups/types.std.ts';
 
 const { mapValues } = lodash;
 
@@ -289,7 +290,24 @@ ipc.on('additional-log-data-request', async event => {
   const ourAci = itemStorage.user.getAci();
   const ourPni = itemStorage.user.getPni();
 
+  let backupTierLogCode: string;
+  switch (itemStorage.get('backupTier')) {
+    case null:
+    case undefined:
+      backupTierLogCode = 'D1';
+      break;
+    case BackupLevel.Free:
+      backupTierLogCode = 'F1';
+      break;
+    case BackupLevel.Paid:
+      backupTierLogCode = itemStorage.get('backupsSubscriberId') ? 'P1' : 'T1';
+      break;
+    default:
+      backupTierLogCode = 'unknown';
+  }
+
   event.sender.send('additional-log-data-response', {
+    backupTierLogCode,
     capabilities: ourCapabilities || {},
     remoteConfig: mapValues(remoteConfig, ({ value, enabled }) => {
       const enableString = enabled ? 'enabled' : 'disabled';
