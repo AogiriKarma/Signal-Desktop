@@ -9,6 +9,7 @@ import {
 
 import { singleProtoJobQueue } from '../jobs/singleProtoJobQueue.preload.ts';
 import { strictAssert } from '../util/assert.std.ts';
+import { SECOND } from '../util/durations/index.std.ts';
 import { sleep } from '../util/sleep.std.ts';
 import { getMinNickname, getMaxNickname } from '../util/Username.dom.ts';
 import { bytesToUuid, uuidToBytes } from '../util/uuidToBytes.std.ts';
@@ -137,57 +138,52 @@ export async function reserveUsername(
       reservation: { previousUsername, username, hash: usernameHash },
     };
   } catch (error) {
-    if (error instanceof HTTPError) {
-      if (error.code === 422) {
-        return { ok: false, error: ReserveUsernameError.Unprocessable };
-      }
-      if (error.code === 409) {
+    if (error instanceof LibSignalErrorBase) {
+      if (error.is(ErrorCode.UsernameNotAvailable)) {
         return { ok: false, error: ReserveUsernameError.Conflict };
       }
-      if (error.code === 413 || error.code === 429) {
+      if (error.is(ErrorCode.RateLimitedError)) {
         return {
           ok: false,
           error: ReserveUsernameError.TooManyAttempts,
         };
       }
-    }
-    if (error instanceof LibSignalErrorBase) {
       if (
-        error.code === ErrorCode.NicknameCannotBeEmpty ||
-        error.code === ErrorCode.NicknameTooShort
+        error.is(ErrorCode.NicknameCannotBeEmpty) ||
+        error.is(ErrorCode.NicknameTooShort)
       ) {
         return {
           ok: false,
           error: ReserveUsernameError.NotEnoughCharacters,
         };
       }
-      if (error.code === ErrorCode.NicknameTooLong) {
+      if (error.is(ErrorCode.NicknameTooLong)) {
         return {
           ok: false,
           error: ReserveUsernameError.TooManyCharacters,
         };
       }
-      if (error.code === ErrorCode.CannotStartWithDigit) {
+      if (error.is(ErrorCode.CannotStartWithDigit)) {
         return {
           ok: false,
           error: ReserveUsernameError.CheckStartingCharacter,
         };
       }
-      if (error.code === ErrorCode.BadNicknameCharacter) {
+      if (error.is(ErrorCode.BadNicknameCharacter)) {
         return {
           ok: false,
           error: ReserveUsernameError.CheckCharacters,
         };
       }
 
-      if (error.code === ErrorCode.DiscriminatorCannotBeZero) {
+      if (error.is(ErrorCode.DiscriminatorCannotBeZero)) {
         return {
           ok: false,
           error: ReserveUsernameError.AllZeroDiscriminator,
         };
       }
 
-      if (error.code === ErrorCode.DiscriminatorCannotHaveLeadingZeros) {
+      if (error.is(ErrorCode.DiscriminatorCannotHaveLeadingZeros)) {
         return {
           ok: false,
           error: ReserveUsernameError.LeadingZeroDiscriminator,
@@ -195,10 +191,10 @@ export async function reserveUsername(
       }
 
       if (
-        error.code === ErrorCode.DiscriminatorCannotBeEmpty ||
-        error.code === ErrorCode.DiscriminatorCannotBeSingleDigit ||
+        error.is(ErrorCode.DiscriminatorCannotBeEmpty) ||
+        error.is(ErrorCode.DiscriminatorCannotBeSingleDigit) ||
         // This is handled on UI level
-        error.code === ErrorCode.DiscriminatorTooLarge
+        error.is(ErrorCode.DiscriminatorTooLarge)
       ) {
         return {
           ok: false,
@@ -309,6 +305,19 @@ export async function confirmUsername(
       }
 
       if (error.code === 409 || error.code === 410) {
+        return ConfirmUsernameResult.ConflictOrGone;
+      }
+    }
+    if (error instanceof LibSignalErrorBase) {
+      if (error.is(ErrorCode.RateLimitedError)) {
+        const time = error.retryAfterSecs * SECOND;
+        log.warn(`confirmUsername: rate limited, waiting ${time}ms`);
+        await sleep(time, abortSignal);
+
+        return confirmUsername(reservation, abortSignal);
+      }
+
+      if (error.is(ErrorCode.UsernameNotSet)) {
         return ConfirmUsernameResult.ConflictOrGone;
       }
     }

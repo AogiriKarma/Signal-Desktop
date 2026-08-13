@@ -1767,6 +1767,7 @@
         "packages/lame/**",
         "packages/mute-state-change/**",
         "packages/windows-ucv/**",
+        "packages/mock-server/**",
         "scripts/**",
         "test/test.mjs",
         ".pnpmfile.mjs",
@@ -1784,7 +1785,7 @@
       }
     },
     {
-      "files": ["packages/windows-ucv/**"],
+      "files": ["packages/windows-ucv/**", "packages/mock-server/**"],
       "env": { "node": true },
       "globals": {
         "window": "readonly",
@@ -1822,6 +1823,41 @@
           // These were explicitly excluded:
           //   1. "__dirname"
         ]
+      }
+    },
+    {
+      "files": [
+        "packages/mock-server/{src,test}/**/*.ts",
+        "packages/mock-server/certs/**/*.js"
+      ],
+      "rules": {
+        "eslint/default-case": "off",
+        "eslint/eqeqeq": "off",
+        "eslint/max-classes-per-file": "off",
+        "eslint/no-await-in-loop": "off",
+        "eslint/no-bitwise": "off",
+        "eslint/no-constant-condition": "off",
+        "eslint/no-else-return": "off",
+        "eslint/no-nested-ternary": "off",
+        "eslint/no-param-reassign": "off",
+        "eslint/no-plusplus": "off",
+        "eslint/no-restricted-globals": "off",
+        "eslint/no-shadow": "off",
+        "eslint/no-undef": "off",
+        "eslint/object-shorthand": "off",
+        "import/extensions": "off",
+        "promise/prefer-await-to-then": "off",
+        "signal-desktop/enforce-array-buffer": "off",
+        "signal-desktop/enforce-license-comments": "off",
+        "typescript/consistent-type-definitions": "off",
+        "typescript/consistent-type-exports": "off",
+        "typescript/consistent-type-imports": "off",
+        "typescript/no-explicit-any": "off",
+        "typescript/no-unnecessary-parameter-property-assignment": "off",
+        "typescript/parameter-properties": "off",
+        "typescript/prefer-readonly": "off",
+        "unicorn/prefer-node-protocol": "off",
+        "eslint/no-console": "off"
       }
     },
 

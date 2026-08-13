@@ -367,10 +367,9 @@ describe('pnp/username', function (this: Mocha.Suite) {
 
     const linkUrl = contactByEncryptedUsernameRoute
       .toWebUrl({
-        encryptedUsername: Buffer.concat([
-          entropy,
-          uuidToBytes(serverId),
-        ]).toString('base64url'),
+        encryptedUsername: Buffer.concat([entropy, serverId]).toString(
+          'base64url'
+        ),
       })
       .toString();
 

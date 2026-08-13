@@ -113,6 +113,15 @@ const config = {
     'packages/windows-ucv': {
       ignoreDependencies: ['node-addon-api'],
     },
+    'packages/mock-server': {
+      entry: [
+        'src/index.ts!',
+        'certs/generate-trust-root.js',
+        'certs/generate-zk-params.js',
+      ],
+      ignoreFiles: ['src/**/*.ts', 'test/**/*.ts'],
+      ignoreDependencies: ['.*'],
+    },
     'sticker-creator': {
       project: [
         'src/**/*.{ts,tsx}!',

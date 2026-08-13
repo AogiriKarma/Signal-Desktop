@@ -41,10 +41,7 @@ import type { ExplodePromiseResultType } from '../util/explodePromise.std.ts';
 import { explodePromise } from '../util/explodePromise.std.ts';
 import { getUserAgent } from '../util/getUserAgent.node.ts';
 import { getTimeoutStream } from '../util/getStreamWithTimeout.node.ts';
-import {
-  toWebSafeBase64,
-  fromWebSafeBase64,
-} from '../util/webSafeBase64.std.ts';
+import { toWebSafeBase64 } from '../util/webSafeBase64.std.ts';
 import { getBasicAuth } from '../util/getBasicAuth.std.ts';
 import { createHTTPSAgent } from '../util/createHTTPSAgent.node.ts';
 import { createProxyAgent } from '../util/createProxyAgent.node.ts';
@@ -821,10 +818,7 @@ const CHAT_CALLS = {
   subscriptions: 'v1/subscription',
   subscriptionConfiguration: 'v1/subscription/configuration',
   transferArchive: 'v1/devices/transfer_archive',
-  username: 'v1/accounts/username_hash',
-  reserveUsername: 'v1/accounts/username_hash/reserve',
   confirmUsername: 'v1/accounts/username_hash/confirm',
-  usernameLink: 'v1/accounts/username_link',
   whoami: 'v1/accounts/whoami',
 };
 
@@ -1063,16 +1057,6 @@ export type VerifyServiceIdResponseType = z.infer<
   typeof verifyServiceIdResponse
 >;
 
-export type ReserveUsernameOptionsType = Readonly<{
-  hashes: ReadonlyArray<Uint8Array<ArrayBuffer>>;
-  abortSignal?: AbortSignal;
-}>;
-
-export type ReplaceUsernameLinkOptionsType = Readonly<{
-  encryptedUsername: Uint8Array<ArrayBuffer>;
-  keepLinkHandle: boolean;
-}>;
-
 export type ConfirmUsernameOptionsType = Readonly<{
   hash: Uint8Array<ArrayBuffer>;
   proof: Uint8Array<ArrayBuffer>;
@@ -1080,27 +1064,11 @@ export type ConfirmUsernameOptionsType = Readonly<{
   abortSignal?: AbortSignal;
 }>;
 
-const reserveUsernameResultZod = z.object({
-  usernameHash: z
-    .string()
-    .transform(x => Bytes.fromBase64(fromWebSafeBase64(x))),
-});
-export type ReserveUsernameResultType = z.infer<
-  typeof reserveUsernameResultZod
->;
-
 const confirmUsernameResultZod = z.object({
   usernameLinkHandle: z.string(),
 });
 export type ConfirmUsernameResultType = z.infer<
   typeof confirmUsernameResultZod
->;
-
-const replaceUsernameLinkResultZod = z.object({
-  usernameLinkHandle: z.string(),
-});
-export type ReplaceUsernameLinkResultType = z.infer<
-  typeof replaceUsernameLinkResultZod
 >;
 
 export type ResolveUsernameByLinkOptionsType = Readonly<{
@@ -2662,29 +2630,36 @@ export async function getAvatar(
 }
 
 export async function deleteUsername(abortSignal?: AbortSignal): Promise<void> {
-  await _ajax({
-    host: 'chatService',
-    call: 'username',
-    httpType: 'DELETE',
-    abortSignal,
-  });
+  await _retry(
+    async () => {
+      const chat = await socketManager.getAuthenticatedApi();
+      return chat.deleteUsernameHash({ abortSignal });
+    },
+    { abortSignal }
+  );
 }
 
 export async function reserveUsername({
   hashes,
   abortSignal,
-}: ReserveUsernameOptionsType): Promise<ReserveUsernameResultType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'reserveUsername',
-    httpType: 'PUT',
-    jsonData: {
-      usernameHashes: hashes.map(hash => toWebSafeBase64(Bytes.toBase64(hash))),
+}: {
+  hashes: Array<Uint8Array<ArrayBuffer>>;
+  abortSignal?: AbortSignal;
+}): Promise<{
+  usernameHash: Uint8Array<ArrayBuffer>;
+}> {
+  const usernameHash = await _retry(
+    async () => {
+      const chat = await socketManager.getAuthenticatedApi();
+      return chat.reserveUsernameHash(
+        { usernameHashes: hashes },
+        { abortSignal }
+      );
     },
-    responseType: 'json',
-    abortSignal,
-    zodSchema: reserveUsernameResultZod,
-  });
+    { abortSignal }
+  );
+
+  return { usernameHash };
 }
 export async function confirmUsername({
   hash,
@@ -2710,20 +2685,21 @@ export async function confirmUsername({
 export async function replaceUsernameLink({
   encryptedUsername,
   keepLinkHandle,
-}: ReplaceUsernameLinkOptionsType): Promise<ReplaceUsernameLinkResultType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'usernameLink',
-    httpType: 'PUT',
-    responseType: 'json',
-    jsonData: {
-      usernameLinkEncryptedValue: toWebSafeBase64(
-        Bytes.toBase64(encryptedUsername)
-      ),
+}: {
+  encryptedUsername: Uint8Array<ArrayBuffer>;
+  keepLinkHandle: boolean;
+}): Promise<{
+  usernameLinkHandle: string;
+}> {
+  const usernameLinkHandle = await _retry(async () => {
+    const chat = await socketManager.getAuthenticatedApi();
+    return chat.setUsernameLink({
+      usernameCiphertext: encryptedUsername,
       keepLinkHandle,
-    },
-    zodSchema: replaceUsernameLinkResultZod,
+    });
   });
+
+  return { usernameLinkHandle };
 }
 
 export async function resolveUsernameLink({

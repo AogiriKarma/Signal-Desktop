@@ -39,6 +39,7 @@ const FILES_TO_IGNORE = [
   '.github/ISSUE_TEMPLATE/bug_report.md',
   '.github/PULL_REQUEST_TEMPLATE.md',
   '.smartling-source.sh',
+  'packages/mock-server/protos/README.md',
   'packages/mute-state-change/dist/acknowledgments.md',
   'packages/lame/dist/acknowledgments.md',
   'sticker-creator/src/util/protos.d.ts',
