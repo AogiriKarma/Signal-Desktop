@@ -195,6 +195,10 @@ const DEFAULT_REMOTE_CONFIG = [
     { enabled: true },
   ],
   ['desktop.libsignalNet.grpc.AttachmentsGetUploadForm', { enabled: true }],
+  [
+    'desktop.libsignalNet.grpc.BackupsAnonymousGetUploadForm',
+    { enabled: true },
+  ],
 ] as const;
 
 //

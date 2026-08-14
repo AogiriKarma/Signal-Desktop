@@ -173,7 +173,9 @@ export async function encryptAndUploadAttachment({
         });
         break;
       case 'backup':
-        uploadForm = await backupsService.api.getMediaUploadForm();
+        uploadForm = await backupsService.api.getMediaUploadForm(
+          encrypted.ciphertextSize
+        );
         break;
       default:
         throw missingCaseError(uploadType);

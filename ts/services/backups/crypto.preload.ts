@@ -92,15 +92,23 @@ export type BackupMediaKeyMaterialType = Readonly<{
 const BACKUP_MEDIA_AES_KEY_LEN = 32;
 const BACKUP_MEDIA_MAC_KEY_LEN = 32;
 
+// Combined HMAC + AES key
+export function deriveBackupMediaEncryptionKey(
+  mediaRootKey: BackupKey,
+  mediaId: Uint8Array<ArrayBuffer>
+): Uint8Array<ArrayBuffer> {
+  if (!mediaId.length) {
+    throw new Error('deriveBackupMediaEncryptionKey: mediaId missing');
+  }
+
+  return mediaRootKey.deriveMediaEncryptionKey(mediaId);
+}
+
 export function deriveBackupMediaKeyMaterial(
   mediaRootKey: BackupKey,
   mediaId: Uint8Array<ArrayBuffer>
 ): BackupMediaKeyMaterialType {
-  if (!mediaId.length) {
-    throw new Error('deriveBackupMediaKeyMaterial: mediaId missing');
-  }
-
-  const material = mediaRootKey.deriveMediaEncryptionKey(mediaId);
+  const material = deriveBackupMediaEncryptionKey(mediaRootKey, mediaId);
 
   return {
     macKey: material.subarray(0, BACKUP_MEDIA_MAC_KEY_LEN),

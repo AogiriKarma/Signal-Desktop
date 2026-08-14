@@ -21,13 +21,20 @@ import {
 } from 'microrouter';
 import { ServiceId, Aci, Pni } from '@signalapp/libsignal-client';
 import SealedSenderMultiRecipientMessage from '@signalapp/libsignal-client/dist/SealedSenderMultiRecipientMessage';
-import { BackupHeaders, Message } from '../data/schemas';
+import { Message } from '../data/schemas';
 import type { Device } from '../data/device';
 
 import { DeviceId, RegistrationId, ServiceIdString } from '../types';
 import { $services, org, signalservice as Proto } from '../../protos/compiled';
-import { AttachmentUploadForm, BackupAuthError, Server } from './base';
+import {
+  AttachmentUploadForm,
+  BackupAuthError,
+  BackupInfo,
+  BackupMediaBatchResult,
+  Server,
+} from './base';
 import { parsePassword } from './common';
+import { toURLSafeBase64 } from '../util';
 
 const debug = createDebug('mock:grpc');
 
@@ -71,21 +78,6 @@ function toServiceIdentifier(
   }
 
   throw new Error(`Invalid service id: ${string}`);
-}
-
-function toBackupHeaders(
-  signedPresentation: org.signal.chat.backup.SignedPresentation | null,
-): BackupHeaders {
-  if (signedPresentation == null) {
-    throw new Error('Missing signedPresentation');
-  }
-
-  return {
-    'x-signal-zk-auth': Buffer.from(signedPresentation.presentation),
-    'x-signal-zk-auth-signature': Buffer.from(
-      signedPresentation.presentationSignature,
-    ),
-  };
 }
 
 // gRPC status codes used by the mock.
@@ -136,9 +128,9 @@ export const createHandler = (server: Server): RequestHandler => {
     ) => Promise<GrpcResponse<Endpoint>>,
   ) {
     const definition = $services[endpoint];
-    // TODO(indutny): enforce on type level
-    if (definition.isRequestStream || definition.isResponseStream) {
-      throw new Error(`Request/response stream is not supported`);
+    // TODO(indutny): enforce on type level, and support true response streams
+    if (definition.isRequestStream) {
+      throw new Error(`Request stream is not supported`);
     }
     return post(`/${endpoint}`, async (httpReq, res) => {
       try {
@@ -401,8 +393,10 @@ export const createHandler = (server: Server): RequestHandler => {
   const onSetBackupPublicKey = grpcRoute(
     'org.signal.chat.backup.BackupsAnonymous/SetPublicKey',
     async ({ signedPresentation, publicKey }) => {
+      assert(signedPresentation != null);
+
       try {
-        await server.setBackupKey(toBackupHeaders(signedPresentation), {
+        await server.setBackupKey(signedPresentation, {
           backupIdPublicKey: Buffer.from(publicKey),
         });
       } catch (error) {
@@ -421,8 +415,10 @@ export const createHandler = (server: Server): RequestHandler => {
   const onRefreshBackup = grpcRoute(
     'org.signal.chat.backup.BackupsAnonymous/Refresh',
     async ({ signedPresentation }) => {
+      assert(signedPresentation != null);
+
       try {
-        await server.refreshBackup(toBackupHeaders(signedPresentation));
+        await server.refreshBackup(signedPresentation);
       } catch (error) {
         if (error instanceof BackupAuthError) {
           return {
@@ -439,15 +435,15 @@ export const createHandler = (server: Server): RequestHandler => {
   const onGetBackupCdnCredentials = grpcRoute(
     'org.signal.chat.backup.BackupsAnonymous/GetCdnCredentials',
     async ({ signedPresentation, cdn }) => {
+      assert(signedPresentation != null);
+
       if (cdn !== 3) {
         throw new Error(`Invalid cdn: ${cdn}`);
       }
 
       let cdnHeaders: Record<string, string>;
       try {
-        cdnHeaders = await server.getBackupCDNAuth(
-          toBackupHeaders(signedPresentation),
-        );
+        cdnHeaders = await server.getBackupCDNAuth(signedPresentation);
       } catch (error) {
         if (error instanceof BackupAuthError) {
           return {
@@ -468,18 +464,18 @@ export const createHandler = (server: Server): RequestHandler => {
   const onGetBackupUploadForm = grpcRoute(
     'org.signal.chat.backup.BackupsAnonymous/GetUploadForm',
     async ({ signedPresentation, uploadType }) => {
+      assert(signedPresentation != null);
+
       if (uploadType == null) {
         throw new Error('Missing uploadType');
       }
 
-      const headers = toBackupHeaders(signedPresentation);
-
       let form: AttachmentUploadForm;
       try {
         if (uploadType.messages != null) {
-          form = await server.getBackupUploadForm(headers);
+          form = await server.getBackupUploadForm(signedPresentation);
         } else {
-          form = await server.getBackupMediaUploadForm(headers);
+          form = await server.getBackupMediaUploadForm(signedPresentation);
         }
       } catch (error) {
         if (!(error instanceof BackupAuthError)) {
@@ -501,6 +497,126 @@ export const createHandler = (server: Server): RequestHandler => {
           },
         },
       };
+    },
+  );
+
+  const onGetMessageBackupInfo = grpcRoute(
+    'org.signal.chat.backup.BackupsAnonymous/GetMessageBackupInfo',
+    async ({ signedPresentation }) => {
+      assert(signedPresentation != null);
+
+      let info: BackupInfo;
+      try {
+        info = await server.getBackupInfo(signedPresentation);
+      } catch (error) {
+        if (error instanceof BackupAuthError) {
+          return {
+            response: { failedAuthentication: { description: error.message } },
+          };
+        }
+        throw error;
+      }
+
+      return {
+        response: {
+          backupInfo: {
+            cdn: info.cdn,
+            backupDir: info.backupDir,
+            backupName: info.backupName,
+          },
+        },
+      };
+    },
+  );
+
+  const onGetMediaBackupInfo = grpcRoute(
+    'org.signal.chat.backup.BackupsAnonymous/GetMediaBackupInfo',
+    async ({ signedPresentation }) => {
+      assert(signedPresentation != null);
+
+      let info: BackupInfo;
+      try {
+        info = await server.getBackupInfo(signedPresentation);
+      } catch (error) {
+        if (error instanceof BackupAuthError) {
+          return {
+            response: { failedAuthentication: { description: error.message } },
+          };
+        }
+        throw error;
+      }
+
+      return {
+        response: {
+          backupInfo: {
+            backupDir: info.backupDir,
+            mediaDir: info.mediaDir,
+            usedSpace: BigInt(info.usedSpace ?? 0),
+          },
+        },
+      };
+    },
+  );
+
+  const onCopyBackupMedia = grpcRoute(
+    'org.signal.chat.backup.BackupsAnonymous/CopyMedia',
+    async ({ signedPresentation, items }) => {
+      assert(signedPresentation != null);
+      // DESKTOP-10466: Mock server does not support streaming multiple responses yet
+      assert.strictEqual(
+        items.length,
+        1,
+        'Can copy only one media object at a time',
+      );
+      const [item] = items;
+      assert(item !== undefined);
+
+      let batchResult: BackupMediaBatchResult;
+      try {
+        batchResult = await server.backupMediaBatch(signedPresentation, {
+          items: [
+            {
+              sourceAttachment: {
+                cdn: item.sourceAttachmentCdn,
+                key: item.sourceKey,
+              },
+              objectLength: item.objectLength,
+              mediaId: toURLSafeBase64(item.mediaId),
+              hmacKey: Buffer.from(item.hmacKey),
+              encryptionKey: Buffer.from(item.encryptionKey),
+            },
+          ],
+        });
+      } catch (error) {
+        if (error instanceof BackupAuthError) {
+          return {
+            mediaId: null,
+            response: { failedAuthentication: { description: error.message } },
+          };
+        }
+        throw error;
+      }
+
+      const [copied] = batchResult.responses;
+      assert(copied !== undefined, 'Missing copy response');
+
+      const { mediaId } = item;
+      const { result } = copied;
+
+      if (typeof result === 'object') {
+        return { mediaId, response: { success: { cdn: result.cdn } } };
+      }
+
+      switch (result) {
+        case 'sourceNotFound':
+          return { mediaId, response: { sourceNotFound: {} } };
+        case 'wrongSourceLength':
+          return { mediaId, response: { wrongSourceLength: {} } };
+        case 'outOfSpace':
+          return { mediaId, response: { outOfSpace: {} } };
+        default:
+          throw new Error(`Unsupported copy result: ${result}`);
+      }
     },
   );
 
@@ -601,6 +717,9 @@ export const createHandler = (server: Server): RequestHandler => {
     onRefreshBackup,
     onGetBackupCdnCredentials,
     onGetBackupUploadForm,
+    onGetMessageBackupInfo,
+    onGetMediaBackupInfo,
+    onCopyBackupMedia,
 
     ...ALL_METHODS.map((method) => method('/*', notFoundAfterAuth)),
   );

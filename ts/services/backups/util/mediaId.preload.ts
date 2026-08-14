@@ -10,10 +10,12 @@ import type {
 } from '../../../types/Attachment.std.ts';
 import { sha256 } from '../../../Crypto.node.ts';
 
-export function getMediaIdFromMediaName(mediaName: string): {
+export type MediaIdType = Readonly<{
   string: string;
   bytes: Uint8Array<ArrayBuffer>;
-} {
+}>;
+
+export function getMediaIdFromMediaName(mediaName: string): MediaIdType {
   const mediaIdBytes = getBackupMediaRootKey().deriveMediaId(mediaName);
   return {
     string: Bytes.toBase64url(mediaIdBytes),
@@ -21,20 +23,16 @@ export function getMediaIdFromMediaName(mediaName: string): {
   };
 }
 
-export function getMediaIdForAttachment(attachment: BackupableAttachmentType): {
-  string: string;
-  bytes: Uint8Array<ArrayBuffer>;
-} {
+export function getMediaIdForAttachment(
+  attachment: BackupableAttachmentType
+): MediaIdType {
   const mediaName = getMediaNameForAttachment(attachment);
   return getMediaIdFromMediaName(mediaName);
 }
 
 export function getMediaIdForAttachmentThumbnail(
   attachment: BackupableAttachmentType
-): {
-  string: string;
-  bytes: Uint8Array<ArrayBuffer>;
-} {
+): MediaIdType {
   const mediaName = getMediaNameForAttachmentThumbnail(
     getMediaNameForAttachment(attachment)
   );

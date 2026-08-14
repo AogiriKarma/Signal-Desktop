@@ -254,12 +254,22 @@ export const SetBackupIdSchema = z.object({
 
 export type SetBackupId = z.infer<typeof SetBackupIdSchema>;
 
-export const BackupHeadersSchema = z.object({
-  'x-signal-zk-auth': z.string().transform(fromBase64),
-  'x-signal-zk-auth-signature': z.string().transform(fromBase64),
-});
+export type BackupSignedPresentation = Readonly<{
+  presentation: Uint8Array<ArrayBuffer>;
+  presentationSignature: Uint8Array<ArrayBuffer>;
+}>;
 
-export type BackupHeaders = z.infer<typeof BackupHeadersSchema>;
+export const BackupHeadersSchema = z
+  .object({
+    'x-signal-zk-auth': z.string().transform(fromBase64),
+    'x-signal-zk-auth-signature': z.string().transform(fromBase64),
+  })
+  .transform(
+    (headers): BackupSignedPresentation => ({
+      presentation: headers['x-signal-zk-auth'],
+      presentationSignature: headers['x-signal-zk-auth-signature'],
+    }),
+  );
 
 export const SetBackupKeySchema = z.object({
   backupIdPublicKey: z.string().transform(fromBase64),

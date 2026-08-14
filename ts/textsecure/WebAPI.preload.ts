@@ -23,6 +23,8 @@ import { AccountAttributes } from '@signalapp/libsignal-client/dist/net.js';
 import type {
   BackupAuth,
   LinkedDevice,
+  CopyBackupMediaItem,
+  CopyBackupMediaOutcome,
   ProvisioningConnection,
   ProvisioningConnectionListener,
   RegisterAccountResponse,
@@ -794,7 +796,6 @@ const CHAT_CALLS = {
   getIceServers: 'v2/calling/relays',
   getStickerPackUpload: 'v1/sticker/pack/form',
   getBackupCredentials: 'v1/archives/auth',
-  getBackupMediaUploadForm: 'v1/archives/media/upload/form',
   keys: 'v2/keys',
   linkDevice: 'v1/devices/link',
   me: 'v1/accounts/me',
@@ -802,9 +803,7 @@ const CHAT_CALLS = {
   multiRecipient: 'v1/messages/multi_recipient',
   phoneNumberDiscoverability: 'v2/accounts/phone_number_discoverability',
   profile: 'v1/profile',
-  backup: 'v1/archives',
   backupMedia: 'v1/archives/media',
-  backupMediaBatch: 'v1/archives/media/batch',
   backupMediaDelete: 'v1/archives/media/delete',
   callLinkCreateAuth: 'v1/call-link/create-auth',
   callQualitySurvey: 'v1/call_quality_survey',
@@ -1123,13 +1122,6 @@ export type ReportMessageOptionsType = Readonly<{
   token?: string;
 }>;
 
-const attachmentUploadFormResponse = z.object({
-  cdn: z.literal(2).or(z.literal(3)),
-  key: z.string(),
-  headers: z.record(z.string(), z.string()),
-  signedUploadLocation: z.string(),
-});
-
 export type AttachmentUploadFormType = {
   cdn: number;
   key: string;
@@ -1286,40 +1278,10 @@ export type UploadBackupOptionsType = Readonly<{
   stream: Readable;
 }>;
 
-export type BackupMediaItemType = Readonly<{
-  sourceAttachment: Readonly<{
-    cdn: number;
-    key: string;
-  }>;
-  objectLength: number;
-  mediaId: string;
-  hmacKey: Uint8Array<ArrayBuffer>;
-  encryptionKey: Uint8Array<ArrayBuffer>;
+export type CopyBackupMediaOptionsType = Readonly<{
+  auth: BackupAuth;
+  items: ReadonlyArray<CopyBackupMediaItem>;
 }>;
-
-export type BackupMediaBatchOptionsType = Readonly<{
-  headers: BackupPresentationHeadersType;
-  items: ReadonlyArray<BackupMediaItemType>;
-}>;
-
-export const backupMediaBatchResponseSchema = z.object({
-  responses: z
-    .object({
-      status: z.number(),
-      failureReason: z.string().nullish(),
-      cdn: z.number(),
-      mediaId: z.string(),
-    })
-    .transform(response => ({
-      ...response,
-      isSuccess: isSuccess(response.status),
-    }))
-    .array(),
-});
-
-export type BackupMediaBatchResponseType = z.infer<
-  typeof backupMediaBatchResponseSchema
->;
 
 export type BackupListMediaOptionsType = Readonly<{
   headers: BackupPresentationHeadersType;
@@ -1401,17 +1363,17 @@ export type GetEphemeralBackupStreamOptionsType = Readonly<{
   abortSignal?: AbortSignal;
 }>;
 
-export const getBackupInfoResponseSchema = z.object({
-  cdn: z.literal(3),
-  backupDir: z.string(),
-  mediaDir: z.string(),
-  backupName: z.string(),
-  usedSpace: z.number().nullish(),
-});
+export type GetMessageBackupInfoResponseType = Readonly<{
+  cdn: number;
+  backupDir: string;
+  backupName: string;
+}>;
 
-export type GetBackupInfoResponseType = z.infer<
-  typeof getBackupInfoResponseSchema
->;
+export type GetMediaBackupInfoResponseType = Readonly<{
+  backupDir: string;
+  mediaDir: string;
+  usedSpace: number;
+}>;
 
 export const megaphoneSchema = z.object({
   uuid: z.string(),
@@ -3163,19 +3125,31 @@ export async function registerKeys(
   });
 }
 
-export async function getBackupInfo(
-  headers: BackupPresentationHeadersType
-): Promise<GetBackupInfoResponseType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'backup',
-    httpType: 'GET',
-    unauthenticated: true,
-    accessKey: undefined,
-    groupSendToken: undefined,
-    headers,
-    responseType: 'json',
-    zodSchema: getBackupInfoResponseSchema,
+export async function getMessageBackupInfo({
+  auth,
+}: {
+  auth: BackupAuth;
+}): Promise<GetMessageBackupInfoResponseType> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
+    const { cdn, backupDir, backupName } =
+      await unauthChat.getMessageBackupInfo({ auth });
+
+    return { cdn, backupDir, backupName };
+  });
+}
+
+export async function getMediaBackupInfo({
+  auth,
+}: {
+  auth: BackupAuth;
+}): Promise<GetMediaBackupInfoResponseType> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
+    const { backupDir, mediaDir, usedSpace } =
+      await unauthChat.getMediaBackupInfo({ auth });
+
+    return { backupDir, mediaDir, usedSpace: Number(usedSpace) };
   });
 }
 
@@ -3239,19 +3213,27 @@ export async function getEphemeralBackupStream({
   });
 }
 
-export async function getBackupMediaUploadForm(
-  headers: BackupPresentationHeadersType
-): Promise<AttachmentUploadFormType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'getBackupMediaUploadForm',
-    httpType: 'GET',
-    unauthenticated: true,
-    accessKey: undefined,
-    groupSendToken: undefined,
-    headers,
-    responseType: 'json',
-    zodSchema: attachmentUploadFormResponse,
+export async function getBackupMediaUploadForm({
+  auth,
+  uploadSize,
+}: {
+  auth: BackupAuth;
+  uploadSize: number;
+}): Promise<AttachmentUploadFormType> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
+    const { cdn, key, headers, signedUploadUrl } =
+      await unauthChat.getMediaUploadForm({
+        auth,
+        uploadSize,
+      });
+
+    return {
+      cdn,
+      key,
+      headers: Object.fromEntries(headers.entries()),
+      signedUploadLocation: signedUploadUrl.toString(),
+    };
   });
 }
 
@@ -3395,42 +3377,18 @@ export async function setBackupSignatureKey({
   });
 }
 
-export async function backupMediaBatch({
-  headers,
+export async function copyBackupMedia({
+  auth,
   items,
-}: BackupMediaBatchOptionsType): Promise<BackupMediaBatchResponseType> {
-  return _ajax({
-    host: 'chatService',
-    call: 'backupMediaBatch',
-    httpType: 'PUT',
-    unauthenticated: true,
-    accessKey: undefined,
-    groupSendToken: undefined,
-    headers,
-    responseType: 'json',
-    jsonData: {
-      items: items.map(item => {
-        const {
-          sourceAttachment,
-          objectLength,
-          mediaId,
-          hmacKey,
-          encryptionKey,
-        } = item;
+}: CopyBackupMediaOptionsType): Promise<Array<CopyBackupMediaOutcome>> {
+  return _retry(async () => {
+    const unauthChat = await socketManager.getUnauthenticatedApi();
 
-        return {
-          sourceAttachment: {
-            cdn: sourceAttachment.cdn,
-            key: sourceAttachment.key,
-          },
-          objectLength,
-          mediaId,
-          hmacKey: Bytes.toBase64(hmacKey),
-          encryptionKey: Bytes.toBase64(encryptionKey),
-        };
-      }),
-    },
-    zodSchema: backupMediaBatchResponseSchema,
+    const outcomes = new Array<CopyBackupMediaOutcome>();
+    for await (const outcome of unauthChat.copyBackupMedia({ auth, items })) {
+      outcomes.push(outcome);
+    }
+    return outcomes;
   });
 }
 

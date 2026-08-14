@@ -900,7 +900,7 @@ export class Server extends BaseServer {
     });
 
     return Promise.all(
-      batch.items.map(async (item) => {
+      batch.items.map(async (item): Promise<BackupMediaBatchResponse> => {
         assert.strictEqual(item.sourceAttachment.cdn, 3, 'Invalid object CDN');
         const transitPath = path.join(dir, item.sourceAttachment.key);
         const finalPath = path.join(mediaDir, item.mediaId);
@@ -913,9 +913,8 @@ export class Server extends BaseServer {
           assert(error instanceof Error);
           if ('code' in error && error.code === 'ENOENT') {
             return {
-              cdn: 3,
-              status: 410,
               mediaId: item.mediaId,
+              result: 'sourceNotFound',
             };
           }
           throw error;
@@ -944,9 +943,8 @@ export class Server extends BaseServer {
         });
 
         return {
-          cdn: 3,
-          status: 200,
           mediaId: item.mediaId,
+          result: { cdn: 3 },
         };
       }),
     );

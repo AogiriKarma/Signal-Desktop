@@ -10,7 +10,6 @@ import fsExtra from 'fs-extra';
 import * as Bytes from '../../Bytes.std.ts';
 import {
   AttachmentBackupManager,
-  FILE_NOT_FOUND_ON_TRANSIT_TIER_STATUS,
   runAttachmentBackupJob,
 } from '../../jobs/AttachmentBackupManager.preload.ts';
 import type {
@@ -46,7 +45,7 @@ describe('AttachmentBackupManager/JobManager', function attachmentBackupManager(
   this.timeout(10 * SECOND);
   let backupManager: AttachmentBackupManager | undefined;
   let runJob: sinon.SinonSpy;
-  let backupMediaBatch: sinon.SinonStub;
+  let copyBackupMedia: sinon.SinonStub;
   let backupsService = {};
   let encryptAndUploadAttachment: sinon.SinonStub;
   let sandbox: sinon.SinonSandbox;
@@ -126,13 +125,13 @@ describe('AttachmentBackupManager/JobManager', function attachmentBackupManager(
     clock = sandbox.useFakeTimers();
     isInCall = sandbox.stub().returns(false);
 
-    backupMediaBatch = sandbox
+    copyBackupMedia = sandbox
       .stub()
-      .returns(Promise.resolve({ responses: [{ isSuccess: true, cdn: 3 }] }));
+      .returns(Promise.resolve([{ result: { cdn: BACKUP_CDN } }]));
 
     backupsService = {
       credentials: {
-        getHeadersForToday: () => Promise.resolve({}),
+        getForToday: () => Promise.resolve({ backupAuth: {} }),
       },
       getBackupCdnInfo: () => ({
         isInBackupTier: false,
@@ -153,7 +152,7 @@ describe('AttachmentBackupManager/JobManager', function attachmentBackupManager(
         {
           // @ts-expect-error incomplete stubbing
           backupsService,
-          backupMediaBatch,
+          copyBackupMedia,
           getAbsoluteAttachmentPath,
           encryptAndUploadAttachment,
           decryptAttachmentV2ToSink,
@@ -233,6 +232,15 @@ describe('AttachmentBackupManager/JobManager', function attachmentBackupManager(
     );
   }
 
+  function assertCopiedFrom(
+    callIndex: number,
+    { sourceKey, cdn }: { sourceKey: string; cdn: number }
+  ) {
+    const item = copyBackupMedia.getCall(callIndex).args[0].items[0];
+    assert.strictEqual(item.sourceKey, sourceKey);
+    assert.strictEqual(item.sourceAttachmentCdn, cdn);
+  }
+
   async function getAllSavedJobs(): Promise<Array<AttachmentBackupJobType>> {
     return DataWriter.getNextAttachmentBackupJobs({
       limit: 1000,
@@ -297,45 +305,33 @@ describe('AttachmentBackupManager/JobManager', function attachmentBackupManager(
     const jobCompleted = waitForJobToBeCompleted(assertAt(jobs, 0));
     await backupManager?.start();
     await jobCompleted;
-    assert.strictEqual(backupMediaBatch.callCount, 1);
+    assert.strictEqual(copyBackupMedia.callCount, 1);
     assert.strictEqual(encryptAndUploadAttachment.callCount, 0);
 
-    assert.deepStrictEqual(
-      backupMediaBatch.getCall(0).args[0].items[0].sourceAttachment,
-      { key: 'transitCdnKey', cdn: TRANSIT_CDN }
-    );
+    assertCopiedFrom(0, { sourceKey: 'transitCdnKey', cdn: TRANSIT_CDN });
   });
 
   it('with transitCdnInfo, will upload to attachment tier if copy operation returns FileNotFoundOnTransitTier', async () => {
-    backupMediaBatch.onFirstCall().returns(
-      Promise.resolve({
-        responses: [
-          { isSuccess: false, status: FILE_NOT_FOUND_ON_TRANSIT_TIER_STATUS },
-        ],
-      })
-    );
+    copyBackupMedia
+      .onFirstCall()
+      .returns(Promise.resolve([{ result: 'sourceNotFound' }]));
 
-    backupMediaBatch.onSecondCall().returns(
-      Promise.resolve({
-        responses: [{ isSuccess: true, cdn: BACKUP_CDN }],
-      })
-    );
+    copyBackupMedia
+      .onSecondCall()
+      .returns(Promise.resolve([{ result: { cdn: BACKUP_CDN } }]));
 
     const jobs = await addJobs(1);
     const jobCompleted = waitForJobToBeCompleted(assertAt(jobs, 0));
     await backupManager?.start();
     await jobCompleted;
     assert.strictEqual(encryptAndUploadAttachment.callCount, 1);
-    assert.strictEqual(backupMediaBatch.callCount, 2);
+    assert.strictEqual(copyBackupMedia.callCount, 2);
 
-    assert.deepStrictEqual(
-      backupMediaBatch.getCall(0).args[0].items[0].sourceAttachment,
-      { key: 'transitCdnKey', cdn: TRANSIT_CDN }
-    );
-    assert.deepStrictEqual(
-      backupMediaBatch.getCall(1).args[0].items[0].sourceAttachment,
-      { key: 'newKeyOnTransitTier', cdn: TRANSIT_CDN_FOR_NEW_UPLOAD }
-    );
+    assertCopiedFrom(0, { sourceKey: 'transitCdnKey', cdn: TRANSIT_CDN });
+    assertCopiedFrom(1, {
+      sourceKey: 'newKeyOnTransitTier',
+      cdn: TRANSIT_CDN_FOR_NEW_UPLOAD,
+    });
 
     const allRemainingJobs = await getAllSavedJobs();
     assert.strictEqual(allRemainingJobs.length, 0);
@@ -348,7 +344,7 @@ describe('AttachmentBackupManager/JobManager', function attachmentBackupManager(
     await backupManager?.start();
     await jobCompleted;
 
-    assert.strictEqual(backupMediaBatch.callCount, 1);
+    assert.strictEqual(copyBackupMedia.callCount, 1);
     assert.strictEqual(encryptAndUploadAttachment.callCount, 1);
 
     // Job removed
@@ -366,7 +362,7 @@ describe('AttachmentBackupManager/JobManager', function attachmentBackupManager(
     await backupManager?.start();
     await jobCompleted;
 
-    assert.strictEqual(backupMediaBatch.callCount, 0);
+    assert.strictEqual(copyBackupMedia.callCount, 0);
     assert.strictEqual(encryptAndUploadAttachment.callCount, 0);
 
     // Job removed

@@ -42,8 +42,8 @@ import {
 import { ServerCertificate, generateSenderCertificate } from '../crypto';
 import { ChangeNumberOptions, Device, DeviceKeys } from '../data/device';
 import {
-  BackupHeaders,
   BackupMediaBatch,
+  BackupSignedPresentation,
   CreateCallLink,
   DeleteCallLink,
   Message,
@@ -321,11 +321,15 @@ export type ListBackupMediaOptions = Readonly<{
   limit: number;
 }>;
 
+export type BackupMediaCopyResult =
+  | Readonly<{ cdn: 3 }>
+  | 'sourceNotFound'
+  | 'wrongSourceLength'
+  | 'outOfSpace';
+
 export type BackupMediaBatchResponse = Readonly<{
-  status: number;
-  failureReason?: string;
-  cdn: 3;
   mediaId: string;
+  result: BackupMediaCopyResult;
 }>;
 
 export type BackupMediaBatchResult = Readonly<{
@@ -1698,11 +1702,11 @@ export abstract class Server {
   }
 
   public async setBackupKey(
-    headers: BackupHeaders,
+    signedPresentation: BackupSignedPresentation,
     { backupIdPublicKey }: SetBackupKey,
   ): Promise<void> {
     const publicKey = PublicKey.deserialize(backupIdPublicKey);
-    const backupId = this.authenticateBackup(headers, publicKey);
+    const backupId = this.authenticateBackup(signedPresentation, publicKey);
     this.backupKeyById.set(backupId, publicKey);
     if (!this.backupCDNPasswordById.get(backupId)) {
       const password = crypto.randomBytes(16).toString('hex');
@@ -1710,14 +1714,18 @@ export abstract class Server {
     }
   }
 
-  public async refreshBackup(headers: BackupHeaders): Promise<void> {
-    this.authenticateBackup(headers);
+  public async refreshBackup(
+    signedPresentation: BackupSignedPresentation,
+  ): Promise<void> {
+    this.authenticateBackup(signedPresentation);
 
     // No-op for tests
   }
 
-  public async getBackupInfo(headers: BackupHeaders): Promise<BackupInfo> {
-    const backupId = this.authenticateBackup(headers);
+  public async getBackupInfo(
+    signedPresentation: BackupSignedPresentation,
+  ): Promise<BackupInfo> {
+    const backupId = this.authenticateBackup(signedPresentation);
 
     return {
       cdn: 3,
@@ -1728,10 +1736,10 @@ export abstract class Server {
   }
 
   public async listBackupMedia(
-    headers: BackupHeaders,
+    signedPresentation: BackupSignedPresentation,
     { cursor, limit }: ListBackupMediaOptions,
   ): Promise<BackupMediaList> {
-    const backupId = this.authenticateBackup(headers);
+    const backupId = this.authenticateBackup(signedPresentation);
 
     let cursorData: BackupMediaCursor | undefined;
     let newCursor: string | undefined;
@@ -1770,17 +1778,17 @@ export abstract class Server {
   }
 
   public async getBackupMediaUploadForm(
-    headers: BackupHeaders,
+    signedPresentation: BackupSignedPresentation,
   ): Promise<AttachmentUploadForm> {
-    this.authenticateBackup(headers);
+    this.authenticateBackup(signedPresentation);
     const form = await this.getAttachmentUploadForm('attachments', uuidv4());
     return form;
   }
 
   public async getBackupUploadForm(
-    headers: BackupHeaders,
+    signedPresentation: BackupSignedPresentation,
   ): Promise<AttachmentUploadForm> {
-    const backupId = this.authenticateBackup(headers);
+    const backupId = this.authenticateBackup(signedPresentation);
     const form = await this.getAttachmentUploadForm(
       'backups',
       `${backupId}/backup`,
@@ -1789,18 +1797,18 @@ export abstract class Server {
   }
 
   public async backupMediaBatch(
-    headers: BackupHeaders,
+    signedPresentation: BackupSignedPresentation,
     batch: BackupMediaBatch,
   ): Promise<BackupMediaBatchResult> {
-    const backupId = this.authenticateBackup(headers);
+    const backupId = this.authenticateBackup(signedPresentation);
     const responses = await this.backupTransitAttachments(backupId, batch);
     return { responses };
   }
 
   public async getBackupCDNAuth(
-    headers: BackupHeaders,
+    signedPresentation: BackupSignedPresentation,
   ): Promise<Record<string, string>> {
-    const backupId = this.authenticateBackup(headers);
+    const backupId = this.authenticateBackup(signedPresentation);
     const password = this.backupCDNPasswordById.get(backupId);
     assert(password !== undefined);
 
@@ -2005,13 +2013,13 @@ export abstract class Server {
   }
 
   private authenticateBackup(
-    headers: BackupHeaders,
+    signedPresentation: BackupSignedPresentation,
     newPublicKey?: PublicKey,
   ): string {
     let presentation: BackupAuthCredentialPresentation;
     try {
       presentation = new BackupAuthCredentialPresentation(
-        headers['x-signal-zk-auth'],
+        signedPresentation.presentation,
       );
       presentation.verify(this.backupServerSecret);
     } catch (e) {
@@ -2032,8 +2040,8 @@ export abstract class Server {
     }
 
     const isValid = validatingKey.verify(
-      headers['x-signal-zk-auth'],
-      headers['x-signal-zk-auth-signature'],
+      signedPresentation.presentation,
+      signedPresentation.presentationSignature,
     );
     if (!isValid) {
       throw new BackupAuthError('Invalid signature');

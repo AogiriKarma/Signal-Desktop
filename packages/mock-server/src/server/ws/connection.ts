@@ -20,7 +20,6 @@ import { Device } from '../../data/device';
 import {
   AtomicLinkingDataSchema,
   BackupHeadersSchema,
-  BackupMediaBatchSchema,
   CreateCallLinkAuthSchema,
   CreateVerificationSessionSchema,
   DeviceKeysSchema,
@@ -887,33 +886,6 @@ export class Connection extends Service {
       }),
     );
 
-    this.router.get('/v1/archives', async (_params, _body, headers) => {
-      if (this.device) {
-        return [400, { error: 'Extraneous authentication' }];
-      }
-
-      return [
-        200,
-        await server.getBackupInfo(BackupHeadersSchema.parse(headers)),
-      ];
-    });
-
-    this.router.get(
-      '/v1/archives/upload/form',
-      async (_params, _body, headers) => {
-        if (this.device) {
-          return [400, { error: 'Extraneous authentication' }];
-        }
-
-        return [
-          200,
-          await this.server.getBackupUploadForm(
-            BackupHeadersSchema.parse(headers),
-          ),
-        ];
-      },
-    );
-
     this.router.get(
       '/v1/archives/media',
       async (_params, _body, headers, query = {}) => {
@@ -937,45 +909,6 @@ export class Connection extends Service {
           await this.server.listBackupMedia(
             BackupHeadersSchema.parse(headers),
             { cursor: cursor != null ? String(cursor) : undefined, limit },
-          ),
-        ];
-      },
-    );
-
-    this.router.get(
-      '/v1/archives/media/upload/form',
-      async (_params, _body, headers) => {
-        if (this.device) {
-          return [400, { error: 'Extraneous authentication' }];
-        }
-
-        return [
-          200,
-          await this.server.getBackupMediaUploadForm(
-            BackupHeadersSchema.parse(headers),
-          ),
-        ];
-      },
-    );
-
-    this.router.put(
-      '/v1/archives/media/batch',
-      async (_params, body, headers) => {
-        if (this.device) {
-          return [400, { error: 'Extraneous authentication' }];
-        }
-
-        if (!body) {
-          return [400, { error: 'Missing body' }];
-        }
-
-        const batch = BackupMediaBatchSchema.parse(JSON.parse(body.toString()));
-
-        return [
-          200,
-          await this.server.backupMediaBatch(
-            BackupHeadersSchema.parse(headers),
-            batch,
           ),
         ];
       },
