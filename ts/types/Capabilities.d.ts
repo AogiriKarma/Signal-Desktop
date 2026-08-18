@@ -11,4 +11,5 @@ export type CapabilitiesUploadType = {
   attachmentBackfill: true;
   spqr: true;
   usernameChangeSyncMessage: true;
+  optionalPhoneNumber: boolean;
 };

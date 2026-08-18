@@ -207,8 +207,7 @@ class KeyTransparency {
       itemStorage.get('phoneNumberDiscoverability') ===
       PhoneNumberDiscoverability.Discoverable;
 
-    const ourE164 = itemStorage.user.getNumber();
-    strictAssert(ourE164 != null, 'missing our e164');
+    const ourE164 = itemStorage.user.getOptionalNumber();
 
     me.deriveAccessKeyIfNeeded();
     const ourAccessKey = me.get('accessKey');
@@ -246,10 +245,13 @@ class KeyTransparency {
             aci: toAciObject(ourAci),
             identityKey: keyPair.publicKey,
           },
-          e164Info: {
-            e164: ourE164,
-            unidentifiedAccessKey: Bytes.fromBase64(ourAccessKey),
-          },
+          e164Info:
+            ourE164 != null
+              ? {
+                  e164: ourE164,
+                  unidentifiedAccessKey: Bytes.fromBase64(ourAccessKey),
+                }
+              : undefined,
           usernameHash,
         },
         abortSignal

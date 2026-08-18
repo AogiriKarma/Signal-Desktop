@@ -217,7 +217,7 @@ export function areWePending(
   >
 ): boolean {
   const ourAci = itemStorage.user.getAci();
-  const ourPni = itemStorage.user.getPni();
+  const ourPni = itemStorage.user.getOptionalPni();
   return Boolean(
     ourAci &&
     (isMemberPending(conversationAttrs, ourAci) ||

@@ -208,9 +208,9 @@ function generateUserState({
   menuOptions: MenuOptionsType;
   theme: ThemeType;
 }): UserStateType {
-  const ourNumber = itemStorage.user.getNumber();
+  const ourNumber = itemStorage.user.getOptionalNumber();
   const ourAci = itemStorage.user.getAci();
-  const ourPni = itemStorage.user.getPni();
+  const ourPni = itemStorage.user.getOptionalPni();
   const ourConversationId =
     window.ConversationController.getOurConversationId();
   const ourDeviceId = itemStorage.user.getDeviceId();

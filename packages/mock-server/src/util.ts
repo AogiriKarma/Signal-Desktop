@@ -361,7 +361,7 @@ export async function getDevicesKeysResult(
           await device.popSingleUseKey(serviceIdKind);
         return {
           deviceId: device.deviceId,
-          registrationId: device.getRegistrationId(serviceIdKind),
+          registrationId: device.getCheckedRegistrationId(serviceIdKind),
           signedPreKey: {
             keyId: signedPreKey.keyId,
             publicKey: Buffer.from(signedPreKey.publicKey.serialize()).toString(

@@ -24,6 +24,12 @@ describe('pnp/PNI DecryptionError unlink', function (this: Mocha.Suite) {
   let bootstrap: Bootstrap;
   let app: App | undefined;
 
+  before(function () {
+    if (Bootstrap.WITHOUT_E164) {
+      this.skip();
+    }
+  });
+
   beforeEach(async () => {
     bootstrap = new Bootstrap({
       contactCount: 0,
@@ -74,10 +80,10 @@ describe('pnp/PNI DecryptionError unlink', function (this: Mocha.Suite) {
 
     const pniChangeNumber = {
       identityKeyPair: badIdentity.serialize(),
-      registrationId: desktop.getRegistrationId(ServiceIdKind.PNI),
+      registrationId: desktop.getCheckedRegistrationId(ServiceIdKind.PNI),
       signedPreKey: signedPreKeyRecord.serialize(),
       lastResortKyberPreKey: kyberPreKeyRecord.serialize(),
-      newE164: desktop.number,
+      newE164: desktop.checkedNumber,
     };
 
     // The goal of these two sync messages is to update Desktop's PNI identity

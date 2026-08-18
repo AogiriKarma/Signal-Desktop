@@ -5,6 +5,7 @@ import assert from 'assert';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import { type Readable } from 'stream';
+import { randomBytes } from 'crypto';
 import path from 'path';
 import type { IncomingMessage, ServerResponse } from 'http';
 import http2, {
@@ -110,6 +111,7 @@ export type CreatePrimaryDeviceOptions = Readonly<{
   contacts?: ReadonlyArray<PrimaryDevice>;
   contactsWithoutProfileKey?: ReadonlyArray<PrimaryDevice>;
   password?: string;
+  hasE164?: boolean;
 }>;
 
 export type PendingProvision = {
@@ -172,7 +174,7 @@ export class Server extends BaseServer {
   private readonly config: StrictConfig;
 
   private readonly trustRoot: PrivateKey;
-  private readonly primaryDevices = new Map<string, PrimaryDevice>();
+  private readonly primaryDevices = new Map<AciString, PrimaryDevice>();
   private readonly knownNumbers = new Set<string>();
   private emptyAttachment: Proto.AttachmentPointer.Params | undefined;
 
@@ -363,8 +365,9 @@ export class Server extends BaseServer {
     contacts = [],
     contactsWithoutProfileKey = [],
     password,
+    hasE164 = true,
   }: CreatePrimaryDeviceOptions): Promise<PrimaryDevice> {
-    const number = await this.generateNumber();
+    const number = hasE164 ? await this.generateNumber() : undefined;
 
     const registrationId = generateRegistrationId();
     const pniRegistrationId = generateRegistrationId();
@@ -372,8 +375,9 @@ export class Server extends BaseServer {
     const device = await this.registerDevice({
       number,
       registrationId,
-      pniRegistrationId,
+      pniRegistrationId: hasE164 ? pniRegistrationId : undefined,
       password: devicePassword,
+      authCredentialSalt: randomBytes(16),
     });
 
     const { aci } = device;
@@ -426,7 +430,6 @@ export class Server extends BaseServer {
     });
     await primary.init();
 
-    this.primaryDevices.set(primary.device.number, primary);
     this.primaryDevices.set(primary.device.aci, primary);
 
     debug(
@@ -445,10 +448,14 @@ export class Server extends BaseServer {
     const device = await this.registerDevice({
       primary: primary.device,
       registrationId,
-      pniRegistrationId,
+      pniRegistrationId: primary.device.pni ? pniRegistrationId : undefined,
     });
 
     for (const serviceIdKind of [ServiceIdKind.ACI, ServiceIdKind.PNI]) {
+      if (device.getServiceIdByKind(serviceIdKind) == null) {
+        continue;
+      }
+
       await this.updateDeviceKeys(
         device,
         serviceIdKind,
@@ -465,18 +472,22 @@ export class Server extends BaseServer {
     primary: PrimaryDevice,
     serviceIdKind = ServiceIdKind.ACI,
   ): void {
-    this.unregisteredServiceIds.add(
-      primary.device.getServiceIdByKind(serviceIdKind),
-    );
+    const serviceId = primary.device.getServiceIdByKind(serviceIdKind);
+    if (serviceId == null) {
+      return;
+    }
+    this.unregisteredServiceIds.add(serviceId);
   }
 
   public register(
     primary: PrimaryDevice,
     serviceIdKind = ServiceIdKind.ACI,
   ): void {
-    this.unregisteredServiceIds.delete(
-      primary.device.getServiceIdByKind(serviceIdKind),
-    );
+    const serviceId = primary.device.getServiceIdByKind(serviceIdKind);
+    if (serviceId == null) {
+      return;
+    }
+    this.unregisteredServiceIds.delete(serviceId);
   }
 
   public respondToChallengesWith(code = 413, data?: unknown): void {
@@ -610,12 +621,12 @@ export class Server extends BaseServer {
     const aciIdentityKey = await primaryDevice.getIdentityKey(
       ServiceIdKind.ACI,
     );
-    const pniIdentityKey = await primaryDevice.getIdentityKey(
-      ServiceIdKind.PNI,
-    );
+    const pniIdentityKey = primaryDevice.device.pni
+      ? await primaryDevice.getIdentityKey(ServiceIdKind.PNI)
+      : undefined;
     const provisioningCode = await this.getProvisioningCode(
       id,
-      primaryDevice.device.number,
+      primaryDevice.device.aci,
     );
 
     this.provisionResultQueueByCode.set(provisioningCode, {
@@ -626,11 +637,11 @@ export class Server extends BaseServer {
     const envelopeData = Proto.ProvisionMessage.encode({
       aciIdentityKeyPrivate: aciIdentityKey.serialize(),
       aciIdentityKeyPublic: aciIdentityKey.getPublicKey().serialize(),
-      pniIdentityKeyPrivate: pniIdentityKey.serialize(),
-      pniIdentityKeyPublic: pniIdentityKey.getPublicKey().serialize(),
-      number: primaryDevice.device.number,
+      pniIdentityKeyPrivate: pniIdentityKey?.serialize() ?? null,
+      pniIdentityKeyPublic: pniIdentityKey?.getPublicKey().serialize() ?? null,
+      number: primaryDevice.device.number ?? null,
       aciBinary: primaryDevice.device.aciRawUuid,
-      pniBinary: primaryDevice.device.pniRawUuid,
+      pniBinary: primaryDevice.device.pniRawUuid ?? null,
       provisioningCode,
       profileKey: primaryDevice.profileKey.serialize(),
       userAgent: primaryDevice.userAgent,
@@ -640,6 +651,7 @@ export class Server extends BaseServer {
       ephemeralBackupKey: primaryDevice.ephemeralBackupKey ?? null,
       mediaRootBackupKey: primaryDevice.mediaRootBackupKey,
       accountEntropyPool: primaryDevice.accountEntropyPool,
+      authCredentialSalt: primaryDevice.device.authCredentialSalt,
     });
 
     const { body, ephemeralKey } = encryptProvisionMessage(
@@ -689,6 +701,12 @@ export class Server extends BaseServer {
           default:
             throw new Error(`Unsupported envelope type: ${envelopeType}`);
         }
+        const destinationServiceIdBinary =
+          target.getServiceIdBinaryByKind(serviceIdKind);
+        assert(
+          destinationServiceIdBinary != null,
+          `Missing destination service id for ${serviceIdKind}`,
+        );
         void this.send(
           target,
           Buffer.from(
@@ -696,8 +714,7 @@ export class Server extends BaseServer {
               type,
               sourceServiceIdBinary: source?.aciBinary ?? null,
               sourceDeviceId: source?.deviceId ?? null,
-              destinationServiceIdBinary:
-                target.getServiceIdBinaryByKind(serviceIdKind),
+              destinationServiceIdBinary,
               serverTimestamp: timestamp,
               clientTimestamp: timestamp,
               content: encrypted,
@@ -778,7 +795,7 @@ export class Server extends BaseServer {
       return;
     }
 
-    const key = `${device.aci}.${device.getRegistrationId(serviceIdKind)}`;
+    const key = `${device.getServiceIdByKind(serviceIdKind)}.${device.getCheckedRegistrationId(serviceIdKind)}`;
 
     // Device is marked as provisioned only once we have its keys
     const resultQueue = this.provisionResultQueueByKey.get(key);
@@ -798,7 +815,7 @@ export class Server extends BaseServer {
     seenServiceIdKinds.add(serviceIdKind);
     if (
       !seenServiceIdKinds.has(ServiceIdKind.ACI) ||
-      !seenServiceIdKinds.has(ServiceIdKind.PNI)
+      (device.pni && !seenServiceIdKinds.has(ServiceIdKind.PNI))
     ) {
       return;
     }
@@ -823,7 +840,11 @@ export class Server extends BaseServer {
     const device = await super.provisionDevice(options);
 
     for (const serviceIdKind of [ServiceIdKind.ACI, ServiceIdKind.PNI]) {
-      const key = `${device.aci}.${device.getRegistrationId(serviceIdKind)}`;
+      const serviceId = device.getServiceIdByKind(serviceIdKind);
+      if (serviceId == null) {
+        continue;
+      }
+      const key = `${serviceId}.${device.getCheckedRegistrationId(serviceIdKind)}`;
       this.provisionResultQueueByKey.set(key, queue);
     }
 

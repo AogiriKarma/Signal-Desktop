@@ -311,14 +311,15 @@ export default class OutgoingMessage {
     serviceId: ServiceIdString
   ): Promise<ReadonlyArray<number>> {
     const ourAci = itemStorage.user.getCheckedAci();
-    const ourNumber = itemStorage.user.getNumber();
+    const ourNumber = itemStorage.user.getOptionalNumber();
 
     const deviceIds = await signalProtocolStore.getDeviceIds({
       ourServiceId: ourAci,
       serviceId,
     });
 
-    const isOurServiceId = serviceId === ourNumber || serviceId === ourAci;
+    const isOurServiceId =
+      (ourNumber != null && serviceId === ourNumber) || serviceId === ourAci;
     if (!isOurServiceId) {
       return deviceIds;
     }

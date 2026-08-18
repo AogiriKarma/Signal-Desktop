@@ -245,7 +245,7 @@ export class ReleaseNoteAndMegaphoneFetcher {
     megaphones: ReadonlyArray<ManifestMegaphoneType>
   ): Promise<number> {
     const nowSeconds = Math.round(Date.now() / 1000);
-    const ourE164 = itemStorage.user.getNumber();
+    const ourE164 = itemStorage.user.getOptionalNumber();
     const ourAci = itemStorage.user.getAci();
     const locales = this.#getLocales();
     let savedCount = 0;

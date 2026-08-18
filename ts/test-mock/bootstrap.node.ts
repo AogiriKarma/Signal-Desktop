@@ -137,6 +137,7 @@ export type LinkOptionsType = Readonly<{
   extraConfig?: Partial<RendererConfigType>;
   ephemeralBackup?: EphemeralBackupType;
   localBackup?: string;
+  hasE164?: boolean;
 }>;
 
 type BootstrapInternalOptions = BootstrapOptions &
@@ -277,8 +278,10 @@ export class Bootstrap {
 
   public async init({
     isStandalone,
+    hasE164 = !Bootstrap.WITHOUT_E164,
   }: {
     isStandalone?: boolean;
+    hasE164?: boolean;
   } = {}): Promise<void> {
     debug('initializing');
 
@@ -328,6 +331,7 @@ export class Bootstrap {
         profileName: 'Myself',
         contacts: this.contacts,
         contactsWithoutProfileKey: this.contactsWithoutProfileKey,
+        hasE164,
       });
       if (this.#options.useLegacyStorageEncryption) {
         this.#privPhone.storageRecordIkm = undefined;
@@ -344,6 +348,8 @@ export class Bootstrap {
 
     debug('setting storage path=%j', this.#storagePath);
   }
+
+  public static WITHOUT_E164 = !!process.env.MOCK_WITHOUT_E164;
 
   public static benchmark(
     fn: (bootstrap: Bootstrap) => Promise<void>,
@@ -490,11 +496,30 @@ export class Bootstrap {
     await this.phone.addSingleUseKey(this.desktop, desktopKey);
 
     for (const contact of this.allContacts) {
-      for (const serviceIdKind of [ServiceIdKind.ACI, ServiceIdKind.PNI]) {
+      {
         // oxlint-disable-next-line no-await-in-loop
-        const contactKey = await this.desktop.popSingleUseKey(serviceIdKind);
+        const contactKey = await this.desktop.popSingleUseKey(
+          ServiceIdKind.ACI
+        );
         // oxlint-disable-next-line no-await-in-loop
-        await contact.addSingleUseKey(this.desktop, contactKey, serviceIdKind);
+        await contact.addSingleUseKey(
+          this.desktop,
+          contactKey,
+          ServiceIdKind.ACI
+        );
+      }
+
+      if (this.desktop.pni) {
+        // oxlint-disable-next-line no-await-in-loop
+        const contactKey = await this.desktop.popSingleUseKey(
+          ServiceIdKind.PNI
+        );
+        // oxlint-disable-next-line no-await-in-loop
+        await contact.addSingleUseKey(
+          this.desktop,
+          contactKey,
+          ServiceIdKind.PNI
+        );
       }
     }
 

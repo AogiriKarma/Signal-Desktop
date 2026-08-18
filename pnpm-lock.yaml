@@ -726,8 +726,8 @@ importers:
         specifier: 4.0.0
         version: 4.0.0
       '@signalapp/libsignal-client':
-        specifier: ^0.92.1
-        version: 0.92.2
+        specifier: 0.100.0
+        version: 0.100.0
       '@tus/file-store':
         specifier: ^1.4.0
         version: 1.5.1
@@ -4557,9 +4557,6 @@ packages:
 
   '@signalapp/libsignal-client@0.100.0':
     resolution: {integrity: sha512-pS67moiIxs3h0kcO81Y9FrGbquh5xo2jyG9RG/+YyDEL6Bcz33IR5fCTdfpnYJR4pd3CoutJNbyUnieMGCpI4Q==, tarball: https://registry.npmjs.org/@signalapp/libsignal-client/-/libsignal-client-0.100.0.tgz}
-
-  '@signalapp/libsignal-client@0.92.2':
-    resolution: {integrity: sha512-mSYKpw32Rtmm+D1y8NKzNA9wkiuU60gXRGuum6NTGRN9C3NI4R1cb6xE9w7q+6rjR4zAb4qZWb9QUG5QcLr7pg==, tarball: https://registry.npmjs.org/@signalapp/libsignal-client/-/libsignal-client-0.92.2.tgz}
 
   '@signalapp/minimask@1.0.1':
     resolution: {integrity: sha512-QAwo0joA60urTNbW9RIz6vLKQjy+jdVtH7cvY0wD9PVooD46MAjE40MLssp4xUJrph91n2XvtJ3pbEUDrmT2AA==, tarball: https://registry.npmjs.org/@signalapp/minimask/-/minimask-1.0.1.tgz}
@@ -15348,11 +15345,6 @@ snapshots:
   '@sideway/pinpoint@2.0.0': {}
 
   '@signalapp/libsignal-client@0.100.0':
-    dependencies:
-      node-gyp-build: 4.8.4
-      type-fest: 4.26.1
-
-  '@signalapp/libsignal-client@0.92.2':
     dependencies:
       node-gyp-build: 4.8.4
       type-fest: 4.26.1

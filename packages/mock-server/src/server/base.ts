@@ -138,11 +138,11 @@ export type SenderCertificateOptions = Readonly<{
 }>;
 
 export type ProvisionDeviceOptions = Readonly<{
-  number: string;
+  aci: AciString;
   password: string;
   provisioningCode: ProvisioningCode;
   registrationId: RegistrationId;
-  pniRegistrationId: RegistrationId;
+  pniRegistrationId: RegistrationId | undefined;
 }>;
 
 export type RegisterDeviceOptions = Readonly<
@@ -150,18 +150,20 @@ export type RegisterDeviceOptions = Readonly<
     | {
         primary?: undefined;
         provisionId?: ProvisionIdString;
-        number: string;
+        number: string | undefined;
         password: string;
+        authCredentialSalt: Buffer<ArrayBuffer>;
       }
     | {
         primary: Device;
         provisionId?: undefined;
         number?: undefined;
         password?: string;
+        authCredentialSalt?: undefined;
       }
   ) & {
     registrationId: RegistrationId;
-    pniRegistrationId: RegistrationId;
+    pniRegistrationId: RegistrationId | undefined;
   }
 >;
 
@@ -216,7 +218,7 @@ export type ModifyGroupOptions = Readonly<{
   group: ServerGroup;
   actions: Proto.GroupChange.Actions.Params;
   aciCiphertext: Uint8Array<ArrayBuffer>;
-  pniCiphertext: Uint8Array<ArrayBuffer>;
+  pniCiphertext: Uint8Array<ArrayBuffer> | undefined;
 }>;
 
 export type EncryptedStickerPack = Readonly<{
@@ -367,8 +369,8 @@ const debug = createDebug('mock:server:base');
 
 // NOTE: This class is currently extended only by src/api/server.ts
 export abstract class Server {
-  private readonly devices = new Map<string, Array<Device>>();
-  private readonly devicesByServiceId = new Map<ServiceIdString, Device>();
+  private readonly devices = new Map<AciString, Array<Device>>();
+  private readonly primaryByServiceId = new Map<ServiceIdString, Device>();
   private readonly devicesByAuth = new Map<string, AuthEntry>();
   private readonly usedServiceIds = new Set<ServiceIdString>();
   private readonly usedProvisionIds = new Set<ProvisionIdString>();
@@ -515,25 +517,32 @@ export abstract class Server {
     registrationId,
     pniRegistrationId,
     password,
+    authCredentialSalt: maybeAuthCredentialSalt,
   }: RegisterDeviceOptions): Promise<Device> {
     if (provisionId && !this.usedProvisionIds.has(provisionId)) {
       throw new Error('Use generateProvisionId() to create new provision id');
     }
 
     let aci: AciString;
-    let pni: PniString;
-    let number: string;
+    let pni: PniString | undefined;
+    let number: string | undefined;
+    let authCredentialSalt: Buffer<ArrayBuffer>;
     if (primary) {
-      ({ aci, pni, number } = primary);
+      ({ aci, pni, number, authCredentialSalt } = primary);
     } else {
-      [aci, pni] = await Promise.all([this.generateAci(), this.generatePni()]);
+      [aci, pni] = await Promise.all([
+        this.generateAci(),
+        maybeNumber ? this.generatePni() : Promise.resolve(undefined),
+      ]);
       number = maybeNumber;
+      assert(maybeAuthCredentialSalt != null, 'Missing auth credential salt');
+      authCredentialSalt = maybeAuthCredentialSalt;
     }
 
-    let list = this.devices.get(number);
+    let list = this.devices.get(aci);
     if (!list) {
       list = [];
-      this.devices.set(number, list);
+      this.devices.set(aci, list);
     }
     const deviceId = (list.length + 1) as DeviceId;
     const isPrimary = deviceId === PRIMARY_DEVICE_ID;
@@ -546,16 +555,19 @@ export abstract class Server {
       registrationId,
       pniRegistrationId,
       isProvisioned: !!password,
+      authCredentialSalt,
     });
 
     if (isPrimary) {
-      assert(!this.devicesByServiceId.has(aci), 'Duplicate primary device');
-      this.devicesByServiceId.set(aci, device);
-      this.devicesByServiceId.set(pni, device);
+      assert(!this.primaryByServiceId.has(aci), 'Duplicate primary device');
+      this.primaryByServiceId.set(aci, device);
+      if (pni != null) {
+        this.primaryByServiceId.set(pni, device);
+      }
     }
 
     if (password) {
-      this.setDeviceAuthPassword(number, device, password);
+      this.setDeviceAuthPassword(device, password);
     }
 
     list.push(device);
@@ -567,12 +579,12 @@ export abstract class Server {
   // Called from primary device
   public async getProvisioningCode(
     id: ProvisionIdString,
-    number: string,
+    aci: AciString,
   ): Promise<ProvisioningCode> {
-    let entry = this.provisioningCodes.get(number);
+    let entry = this.provisioningCodes.get(aci);
     if (!entry) {
       entry = new Map<ProvisioningCode, ProvisionIdString>();
-      this.provisioningCodes.set(number, entry);
+      this.provisioningCodes.set(aci, entry);
     }
     let code: ProvisioningCode;
     do {
@@ -584,13 +596,13 @@ export abstract class Server {
 
   // Called from secondary device
   public async provisionDevice({
-    number,
+    aci,
     password,
     provisioningCode,
     registrationId,
     pniRegistrationId,
   }: ProvisionDeviceOptions): Promise<Device> {
-    const entry = this.provisioningCodes.get(number);
+    const entry = this.provisioningCodes.get(aci);
     if (!entry) {
       throw new Error('Invalid number for provisioning');
     }
@@ -601,7 +613,7 @@ export abstract class Server {
     }
     entry.delete(provisioningCode);
 
-    const [primary] = this.devices.get(number) ?? [];
+    const [primary] = this.devices.get(aci) ?? [];
     assert(primary !== undefined, 'Missing primary device when provisioning');
 
     const device = await this.registerDevice({
@@ -611,29 +623,17 @@ export abstract class Server {
       password,
     });
 
-    debug(
-      'provisioned device id=%j number=%j aci=%j',
-      device.deviceId,
-      number,
-      device.aci,
-    );
+    debug('provisioned device id=%j aci=%j', device.deviceId, device.aci);
     return device;
   }
 
-  private setDeviceAuthPassword(
-    number: string,
-    device: Device,
-    password: string,
-  ) {
-    const username = `${number}.${device.deviceId}`;
-
+  private setDeviceAuthPassword(device: Device, password: string) {
     // This is awkward, but WebSockets use it.
-    const secondUsername = `${device.aci}.${device.deviceId}`;
+    const username = `${device.aci}.${device.deviceId}`;
 
     // Add auth only after successfully registering the device
     assert(
-      !this.devicesByAuth.has(username) &&
-        !this.devicesByAuth.has(secondUsername),
+      !this.devicesByAuth.has(username),
       'Duplicate username in `provisionDevice`',
     );
     const authEntry = {
@@ -641,7 +641,6 @@ export abstract class Server {
       device,
     };
     this.devicesByAuth.set(username, authEntry);
-    this.devicesByAuth.set(secondUsername, authEntry);
   }
 
   public async updateDeviceKeys(
@@ -650,7 +649,7 @@ export abstract class Server {
     keys: Omit<DeviceKeys, 'identityKey'>,
   ): Promise<void> {
     debug('setting device=%s keys', device.debugId);
-    const primary = this.devicesByServiceId.get(device.aci);
+    const primary = this.primaryByServiceId.get(device.aci);
     assert(primary, 'must have primary device');
     await device.setKeys(serviceIdKind, {
       ...keys,
@@ -662,30 +661,14 @@ export abstract class Server {
     device: Device,
     options: ChangeNumberOptions,
   ): Promise<void> {
-    const oldNumber = device.number;
     const oldPni = device.pni;
+    assert(oldPni != null, 'Must have old PNI for change number');
     await device.changeNumber(options);
 
-    const oldDevices = this.devices.get(oldNumber) ?? [];
-    const oldDeviceIndex = oldDevices.indexOf(device);
-    if (oldDeviceIndex !== -1) {
-      oldDevices.splice(oldDeviceIndex, 1);
-      if (oldDevices.length === 0) {
-        this.devices.delete(oldNumber);
-      }
-    }
-
-    let newDevices = this.devices.get(options.number);
-    if (!newDevices) {
-      newDevices = [];
-      this.devices.set(options.number, newDevices);
-    }
-    newDevices.push(device);
-
-    const oldPrimary = this.devicesByServiceId.get(oldPni);
+    const oldPrimary = this.primaryByServiceId.get(oldPni);
     if (oldPrimary === device) {
-      this.devicesByServiceId.delete(oldPni);
-      this.devicesByServiceId.set(options.pni, device);
+      this.primaryByServiceId.delete(oldPni);
+      this.primaryByServiceId.set(options.pni, device);
     }
   }
 
@@ -831,7 +814,8 @@ export abstract class Server {
       deviceById.delete(destinationDeviceId);
 
       if (
-        target.getRegistrationId(serviceIdKind) !== destinationRegistrationId
+        target.getCheckedRegistrationId(serviceIdKind) !==
+        destinationRegistrationId
       ) {
         staleDevices.add(destinationDeviceId);
         continue;
@@ -998,7 +982,9 @@ export abstract class Server {
   }: ModifyGroupOptions): Promise<ModifyGroupResult> {
     return group.modify(
       new UuidCiphertext(Buffer.from(aciCiphertext)),
-      new UuidCiphertext(Buffer.from(pniCiphertext)),
+      pniCiphertext
+        ? new UuidCiphertext(Buffer.from(pniCiphertext))
+        : undefined,
       actions,
     );
   }
@@ -1536,75 +1522,55 @@ export abstract class Server {
   // Utils
   //
 
-  public async getDevice(
-    number: string,
-    deviceId: DeviceId,
+  public async getDeviceByServiceId(
+    serviceId: ServiceIdString,
+    deviceId = PRIMARY_DEVICE_ID,
   ): Promise<Device | undefined> {
-    const list = this.devices.get(number);
-    if (!list) {
-      return;
-    }
-    if (deviceId < 1 || deviceId > list.length) {
-      return;
+    const primary = this.primaryByServiceId.get(serviceId);
+    if (primary == null) {
+      return undefined;
     }
 
-    return list[deviceId - 1];
+    const list = this.devices.get(primary.aci);
+    if (list === undefined) {
+      return undefined;
+    }
+    return list.find((device) => device.deviceId === deviceId);
   }
-  async removeDevice(number: string, deviceId: DeviceId): Promise<void> {
-    if (deviceId === PRIMARY_DEVICE_ID) {
-      throw new Error(
-        'You cannot remove a primary device; unregister account instead',
-      );
-    }
-    const list = this.devices.get(number);
-    if (!list) {
-      throw new Error(`No devices found for number ${number}`);
-    }
-    if (deviceId < 1 || deviceId > list.length) {
-      throw new Error(
-        `Device ${deviceId} is out of range for number ${number}`,
-      );
+
+  public async removeDeviceByServiceId(
+    serviceId: ServiceIdString,
+    deviceId: DeviceId,
+  ): Promise<void> {
+    const primary = this.primaryByServiceId.get(serviceId);
+    if (primary == null) {
+      return;
     }
 
-    const device = list[deviceId - 1];
+    const list = this.devices.get(primary.aci);
+    if (list === undefined) {
+      return;
+    }
+    const index = list.findIndex((device) => device.deviceId === deviceId);
+    assert(index !== -1, `Missing device for ${deviceId}`);
 
-    debug('removeDevice %j.%j (%j)', device?.aci, deviceId, number);
-    assert(device != null, `Missing device for deviceId ${deviceId}`);
-
-    const copy = [...list];
-    copy.splice(deviceId - 1, 1);
-    this.devices.set(number, copy);
-
-    const idByNumber = `${number}.${deviceId}`;
-    this.devicesByAuth.delete(idByNumber);
+    const device = list[index];
+    assert(device != null);
+    list.splice(index, 1);
 
     const idByAci = `${device.aci}.${deviceId}`;
     this.devicesByAuth.delete(idByAci);
   }
 
-  public async getDeviceByServiceId(
-    serviceId: ServiceIdString,
-    deviceId?: DeviceId,
-  ): Promise<Device | undefined> {
-    const primary = this.devicesByServiceId.get(serviceId);
-    if (deviceId === undefined || !primary || primary.deviceId === deviceId) {
-      return primary;
-    }
-    if (primary.deviceId !== PRIMARY_DEVICE_ID) {
-      return undefined;
-    }
-    return this.getDevice(primary.number, deviceId);
-  }
-
   public async getAllDevicesByServiceId(
     serviceId: ServiceIdString,
   ): Promise<ReadonlyArray<Device>> {
-    const primary = this.devicesByServiceId.get(serviceId);
+    const primary = this.primaryByServiceId.get(serviceId);
     if (!primary) {
       return [];
     }
 
-    return this.devices.get(primary.number) ?? [];
+    return this.devices.get(primary.aci) ?? [];
   }
 
   public async getSenderCertificate(
@@ -1620,12 +1586,20 @@ export abstract class Server {
   }
 
   public async getGroupCredentials(
-    { aci, pni }: Device,
+    { aci, pni, authCredentialSalt }: Device,
     range: CredentialsRange,
   ): Promise<Credentials> {
     const auth = new ServerZkAuthOperations(this.zkSecret);
 
     return this.issueCredentials(range, (redemptionTime) => {
+      if (pni == null) {
+        return auth.issueAuthCredentialZkcWithoutPni(
+          Aci.parseFromServiceIdString(aci),
+          authCredentialSalt,
+          redemptionTime,
+        );
+      }
+
       return auth.issueAuthCredentialWithPniZkc(
         Aci.parseFromServiceIdString(aci),
         Pni.parseFromServiceIdString(pni),

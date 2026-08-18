@@ -134,7 +134,7 @@ class StorageStateItem<Value extends RecordValue = RecordValue> {
     }
 
     const existingPni = this.record.contact.pniBinary;
-    if (!existingPni?.length) {
+    if (!existingPni?.length || device.pniRawUuid == null) {
       return false;
     }
 
@@ -389,8 +389,10 @@ export class StorageState {
           aciBinary:
             serviceIdKind === ServiceIdKind.ACI ? device.aciRawUuid : null,
           pniBinary:
-            serviceIdKind === ServiceIdKind.PNI ? device.pniRawUuid : null,
-          e164: device.number,
+            serviceIdKind === ServiceIdKind.PNI
+              ? (device.pniRawUuid ?? null)
+              : null,
+          e164: device.number ?? null,
           ...diff,
         },
       },
@@ -737,6 +739,9 @@ export class StorageState {
   ): StorageState {
     const deviceServiceIdBinary =
       device.getServiceIdBinaryByKind(serviceIdKind);
+    if (deviceServiceIdBinary == null) {
+      return this;
+    }
 
     return this.updateItem(
       (item) => item.isAccount(),

@@ -160,13 +160,12 @@ export class Provisioner {
       readReceipts,
       ephemeralBackupKey,
       accountEntropyPool,
+      authCredentialSalt,
       mediaRootBackupKey,
     } = envelope;
 
-    strictAssert(number, 'prepareLinkData: missing number');
     strictAssert(provisioningCode, 'prepareLinkData: missing provisioningCode');
     strictAssert(aciKeyPair, 'prepareLinkData: missing aciKeyPair');
-    strictAssert(pniKeyPair, 'prepareLinkData: missing pniKeyPair');
     strictAssert(
       Bytes.isNotEmpty(profileKey),
       'prepareLinkData: missing profileKey'
@@ -176,8 +175,37 @@ export class Provisioner {
       'prepareLinkData: missing masterKey or accountEntropyPool'
     );
 
+    if (ourPni == null) {
+      strictAssert(
+        authCredentialSalt != null,
+        'prepareLinkData: missing authCredentialSalt'
+      );
+      return {
+        type: AccountType.Linked,
+        hasE164: false,
+        verificationCode: provisioningCode,
+        aciKeyPair,
+        profileKey,
+        deviceName: normalizeDeviceName(deviceName).slice(
+          0,
+          MAX_DEVICE_NAME_LENGTH
+        ),
+        userAgent,
+        ourAci,
+        readReceipts: Boolean(readReceipts),
+        masterKey,
+        ephemeralBackupKey,
+        authCredentialSalt,
+        accountEntropyPool,
+        mediaRootBackupKey,
+      };
+    }
+
+    strictAssert(number != null, 'prepareLinkData: missing number');
+    strictAssert(pniKeyPair != null, 'prepareLinkData: missing pniKeyPair');
     return {
       type: AccountType.Linked,
+      hasE164: true,
       number,
       verificationCode: provisioningCode,
       aciKeyPair,
@@ -193,6 +221,7 @@ export class Provisioner {
       readReceipts: Boolean(readReceipts),
       masterKey,
       ephemeralBackupKey,
+      authCredentialSalt,
       accountEntropyPool,
       mediaRootBackupKey,
     };
@@ -397,7 +426,10 @@ export class Provisioner {
       .toAppUrl({
         uuid,
         pubKey: Bytes.toBase64(cipher.getPublicKey().serialize()),
-        capabilities: isLinkAndSyncEnabled() ? ['backup5'] : [],
+        capabilities: [
+          'nopni', // e164-less linking
+          ...(isLinkAndSyncEnabled() ? ['backup5'] : []),
+        ],
       })
       .toString();
 

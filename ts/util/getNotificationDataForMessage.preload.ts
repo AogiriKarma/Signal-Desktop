@@ -157,7 +157,7 @@ export function getNotificationDataForMessage(
     const changes = GroupChange.renderChange<string>(change, {
       i18n,
       ourAci: itemStorage.user.getCheckedAci(),
-      ourPni: itemStorage.user.getCheckedPni(),
+      ourPni: itemStorage.user.getOptionalPni(),
       renderContact: (conversationId: string) => {
         const conversation = window.ConversationController.get(conversationId);
         return conversation

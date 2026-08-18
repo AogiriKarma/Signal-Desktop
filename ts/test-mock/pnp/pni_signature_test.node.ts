@@ -79,8 +79,13 @@ describe('pnp/PNI Signature', function (this: Mocha.Suite) {
     await bootstrap.teardown();
   });
 
-  it('should be sent by Desktop until encrypted delivery receipt', async () => {
+  it('should be sent by Desktop until encrypted delivery receipt', async function () {
     const { server, desktop } = bootstrap;
+
+    if (!desktop.pni) {
+      this.skip();
+      return;
+    }
 
     const ourPniKey = await desktop.getIdentityKey(ServiceIdKind.PNI);
     const ourAciKey = await desktop.getIdentityKey(ServiceIdKind.ACI);
@@ -268,8 +273,8 @@ describe('pnp/PNI Signature', function (this: Mocha.Suite) {
 
     debug('Send a PNI sync message');
     const timestamp = bootstrap.getTimestamp();
-    const destinationServiceIdBinary = stranger.device.pniBinary;
-    const destinationE164 = stranger.device.number;
+    const destinationServiceIdBinary = stranger.device.checkedPniBinary;
+    const destinationE164 = stranger.device.checkedNumber;
     const destinationPniIdentityKey = await stranger.device.getIdentityKey(
       ServiceIdKind.PNI
     );

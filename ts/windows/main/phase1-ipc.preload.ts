@@ -288,7 +288,7 @@ ipc.on('additional-log-data-request', async event => {
   }
 
   const ourAci = itemStorage.user.getAci();
-  const ourPni = itemStorage.user.getPni();
+  const ourPni = itemStorage.user.getOptionalPni();
 
   let backupTierLogCode: string;
   switch (itemStorage.get('backupTier')) {

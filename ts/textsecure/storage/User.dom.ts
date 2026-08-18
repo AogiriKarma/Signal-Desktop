@@ -19,8 +19,8 @@ const log = createLogger('User');
 
 export type SetCredentialsOptions = {
   aci: AciString;
-  pni: PniString;
-  number: string;
+  pni: PniString | undefined;
+  number: string | undefined;
   deviceId: number;
   deviceName?: string;
   password: string;
@@ -43,7 +43,7 @@ export class User {
   }
 
   public async setNumber(number: string): Promise<void> {
-    if (this.getNumber() === number) {
+    if (this.getOptionalNumber() === number) {
       return;
     }
 
@@ -64,7 +64,7 @@ export class User {
     window.Whisper.events.emit('userChanged', true);
   }
 
-  public getNumber(): string | undefined {
+  public getOptionalNumber(): string | undefined {
     const numberId = this.#storage.get('number_id');
     if (numberId === undefined) {
       return undefined;
@@ -72,7 +72,7 @@ export class User {
     return unencodeNumber(numberId)[0];
   }
 
-  public getPni(): PniString | undefined {
+  public getOptionalPni(): PniString | undefined {
     const pni = this.#storage.get('pni');
     if (pni === undefined || !isPniString(pni)) {
       return undefined;
@@ -96,7 +96,7 @@ export class User {
     serviceIdKind: ServiceIdKind
   ): ServiceIdString | undefined {
     if (serviceIdKind === ServiceIdKind.PNI) {
-      return this.getPni();
+      return this.getOptionalPni();
     }
 
     strictAssert(
@@ -110,12 +110,6 @@ export class User {
     const aci = this.getAci();
     strictAssert(aci !== undefined, 'Must have our own ACI');
     return aci;
-  }
-
-  public getCheckedPni(): PniString {
-    const pni = this.getPni();
-    strictAssert(pni !== undefined, 'Must have our own PNI');
-    return pni;
   }
 
   public getCheckedServiceId(serviceIdKind: ServiceIdKind): ServiceIdString {
@@ -134,8 +128,8 @@ export class User {
       return ServiceIdKind.ACI;
     }
 
-    const pni = this.getPni();
-    if (pni === serviceId) {
+    const pni = this.getOptionalPni();
+    if (pni != null && pni === serviceId) {
       return ServiceIdKind.PNI;
     }
 
@@ -195,11 +189,15 @@ export class User {
     const { aci, pni, number, deviceId, deviceName, password } = credentials;
 
     await Promise.all([
-      this.#storage.put('number_id', `${number}.${deviceId}`),
+      number != null
+        ? this.#storage.put('number_id', `${number}.${deviceId}`)
+        : this.#storage.remove('number_id'),
       this.#storage.put('uuid_id', `${aci}.${deviceId}`),
       this.#storage.put('password', password),
-      this.setPni(pni),
-      deviceName ? this.setDeviceName(deviceName) : Promise.resolve(),
+      pni != null && this.setPni(pni),
+      deviceName
+        ? this.setDeviceName(deviceName)
+        : this.#storage.remove('device_name'),
     ]);
   }
 

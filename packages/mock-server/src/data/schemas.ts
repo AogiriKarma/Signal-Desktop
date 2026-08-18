@@ -71,13 +71,13 @@ export const AtomicLinkingDataSchema = z.object({
   accountAttributes: z.object({
     fetchesMessages: z.boolean(),
     registrationId: RegistrationIdSchema,
-    pniRegistrationId: RegistrationIdSchema,
+    pniRegistrationId: RegistrationIdSchema.optional(),
     name: z.string(),
   }),
   aciSignedPreKey: SignedPreKeySchema,
-  pniSignedPreKey: SignedPreKeySchema,
   aciPqLastResortPreKey: SignedPreKeySchema,
-  pniPqLastResortPreKey: SignedPreKeySchema,
+  pniSignedPreKey: SignedPreKeySchema.optional(),
+  pniPqLastResortPreKey: SignedPreKeySchema.optional(),
 });
 
 export const UpdateProfileSchema = z.object({
@@ -111,12 +111,14 @@ export const RegisterAccountSchema = z.object({
   accountAttributes: z.object({
     fetchesMessages: z.boolean(),
     registrationId: RegistrationIdSchema,
-    pniRegistrationId: RegistrationIdSchema,
+    pniRegistrationId: RegistrationIdSchema.optional(),
     name: z.string().optional(),
     capabilities: z.object({
       attachmentBackfill: z.boolean(),
       spqr: z.boolean(),
       usernameChangeSyncMessage: z.boolean(),
+      // TODO(indutny): read it
+      optionalPhoneNumber: z.boolean().optional(),
     }),
     registrationLock: z.string().optional(),
     unidentifiedAccessKey: z.array(z.number()),
@@ -129,9 +131,9 @@ export const RegisterAccountSchema = z.object({
   aciIdentityKey: z.string(),
   pniIdentityKey: z.string(),
   aciSignedPreKey: SignedPreKeySchema,
-  pniSignedPreKey: SignedPreKeySchema,
   aciPqLastResortPreKey: SignedPreKeySchema,
-  pniPqLastResortPreKey: SignedPreKeySchema,
+  pniSignedPreKey: SignedPreKeySchema.optional(),
+  pniPqLastResortPreKey: SignedPreKeySchema.optional(),
   apnToken: z
     .object({
       apnRegistrationId: z.string(),
@@ -146,7 +148,7 @@ export const RegisterAccountSchema = z.object({
 export type RegisterAccountResponse = {
   uuid: string;
   number: string;
-  pni: string;
+  pni: string | undefined;
   usernameHash?: string;
   usernameLinkHandle?: string;
   storageCapable: boolean;

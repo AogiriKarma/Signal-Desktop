@@ -11,6 +11,8 @@ import * as Errors from './errors.std.ts';
 
 const log = createLogger('PhoneNumber');
 
+export const COUNTRY_CODE_FALLBACK = 99999;
+
 function _format(
   phoneNumber: string,
   options: {
@@ -37,7 +39,7 @@ export function getCountryCode(
 ): number | undefined {
   try {
     if (phoneNumber == null) {
-      return undefined;
+      return COUNTRY_CODE_FALLBACK;
     }
     if (!isValidNumber(phoneNumber)) {
       return undefined;

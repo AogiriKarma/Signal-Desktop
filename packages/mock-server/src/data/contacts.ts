@@ -5,7 +5,7 @@ import { signalservice as Proto } from '../../protos/compiled';
 
 export type Contact = Readonly<{
   aciBinary: Uint8Array<ArrayBuffer>;
-  number: string;
+  number: string | undefined;
   profileName: string;
 }>;
 
@@ -18,7 +18,7 @@ export function serializeContacts(
       return Buffer.from(
         Proto.ContactDetails.encode({
           aciBinary,
-          number,
+          number: number ?? null,
           name,
           avatar: null,
           expireTimer: null,

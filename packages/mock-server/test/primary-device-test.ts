@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
 import assert from 'assert';
+import { randomBytes } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
 import { PrivateKey } from '@signalapp/libsignal-client';
 import { ServerSecretParams } from '@signalapp/libsignal-client/zkgroup';
@@ -36,6 +37,7 @@ async function createPrimaryDevice(name: string): Promise<PrimaryDevice> {
     registrationId: 1 as RegistrationId,
     pniRegistrationId: 2 as RegistrationId,
     isProvisioned: false,
+    authCredentialSalt: randomBytes(16),
   });
 
   const primary = new PrimaryDevice(device, {

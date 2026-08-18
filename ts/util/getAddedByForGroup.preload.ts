@@ -7,11 +7,12 @@ export function getAddedByForGroup(
   conversation: ConversationType
 ): ConversationType | null {
   const ourAci = itemStorage.user.getCheckedAci();
-  const ourPni = itemStorage.user.getPni();
+  const ourPni = itemStorage.user.getOptionalPni();
 
   let addedByAci;
   addedByAci = conversation.pendingMemberships?.find(
-    item => item.serviceId === ourAci || item.serviceId === ourPni
+    item =>
+      item.serviceId === ourAci || (ourPni != null && item.serviceId === ourPni)
   )?.addedByUserId;
 
   if (addedByAci == null) {

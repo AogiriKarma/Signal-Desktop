@@ -30,12 +30,13 @@ const debug = createDebug('mock:device');
 
 export type DeviceOptions = Readonly<{
   aci: AciString;
-  pni: PniString;
-  number: string;
+  pni: PniString | undefined;
+  number: string | undefined;
   deviceId: DeviceId;
   registrationId: RegistrationId;
-  pniRegistrationId: RegistrationId;
+  pniRegistrationId: RegistrationId | undefined;
   isProvisioned: boolean;
+  authCredentialSalt: Buffer<ArrayBuffer>;
 }>;
 
 export type ChangeNumberOptions = Readonly<{
@@ -96,14 +97,15 @@ export class Device {
   public accessKey?: Buffer<ArrayBuffer>;
   public profileKeyCommitment?: ProfileKeyCommitment;
   public profileName?: Buffer<ArrayBuffer>;
+  public readonly authCredentialSalt: Buffer<ArrayBuffer>;
 
   private keys = new Map<ServiceIdKind, InternalDeviceKeys>();
 
-  private privPni: PniString;
-  private privNumber: string;
-  private privPniAddress: ProtocolAddress;
+  private privPni: PniString | undefined;
+  private privNumber: string | undefined;
+  private privPniAddress: ProtocolAddress | undefined;
   private readonly registrationId: RegistrationId;
-  private pniRegistrationId: RegistrationId;
+  private pniRegistrationId: RegistrationId | undefined;
 
   constructor(options: DeviceOptions) {
     this.aci = options.aci;
@@ -115,9 +117,13 @@ export class Device {
     this.pniRegistrationId = options.pniRegistrationId;
 
     this.isProvisioned = options.isProvisioned;
+    this.authCredentialSalt = options.authCredentialSalt;
 
     this.address = ProtocolAddress.new(this.aci, this.deviceId);
-    this.privPniAddress = ProtocolAddress.new(this.pni, this.deviceId);
+    this.privPniAddress =
+      this.pni == null
+        ? undefined
+        : ProtocolAddress.new(this.pni, this.deviceId);
     this.capabilities = {
       deleteSync: true,
       versionedExpirationTimer: true,
@@ -130,11 +136,14 @@ export class Device {
     return `${this.aci}.${this.deviceId}`;
   }
 
-  public getRegistrationId(serviceIdKind: ServiceIdKind): number {
+  public getCheckedRegistrationId(serviceIdKind: ServiceIdKind): number {
     switch (serviceIdKind) {
       case ServiceIdKind.ACI:
         return this.registrationId;
       case ServiceIdKind.PNI:
+        if (this.pniRegistrationId == null) {
+          throw new Error('No PNI registration id');
+        }
         return this.pniRegistrationId;
     }
   }
@@ -143,28 +152,77 @@ export class Device {
     return Aci.parseFromServiceIdString(this.aci).getServiceIdBinary();
   }
 
-  public get pni(): PniString {
+  public get pni(): PniString | undefined {
     return this.privPni;
   }
 
-  public get pniBinary(): Uint8Array<ArrayBuffer> {
+  public get checkedPni(): PniString {
+    if (this.privPni == null) {
+      throw new Error(`No PNI for ${this.debugId}`);
+    }
+    return this.privPni;
+  }
+
+  public get pniBinary(): Uint8Array<ArrayBuffer> | undefined {
+    if (this.pni == null) {
+      return undefined;
+    }
     return Pni.parseFromServiceIdString(this.pni).getServiceIdBinary();
+  }
+
+  public get checkedPniBinary(): Uint8Array<ArrayBuffer> {
+    const res = this.pniBinary;
+
+    if (res == null) {
+      throw new Error(`No PNI for ${this.debugId}`);
+    }
+    return res;
   }
 
   public get aciRawUuid(): Uint8Array<ArrayBuffer> {
     return Aci.parseFromServiceIdString(this.aci).getRawUuidBytes();
   }
 
-  public get pniRawUuid(): Uint8Array<ArrayBuffer> {
+  public get pniRawUuid(): Uint8Array<ArrayBuffer> | undefined {
+    if (this.pni == null) {
+      return undefined;
+    }
     return Pni.parseFromServiceIdString(this.pni).getRawUuidBytes();
   }
 
-  public get number(): string {
+  public get checkedPniRawUuid(): Uint8Array<ArrayBuffer> {
+    const res = this.pniRawUuid;
+
+    if (res == null) {
+      throw new Error(`No PNI for ${this.debugId}`);
+    }
+    return res;
+  }
+
+  public get number(): string | undefined {
     return this.privNumber;
   }
 
-  public get pniAddress(): ProtocolAddress {
+  public get checkedNumber(): string {
+    const res = this.number;
+
+    if (res == null) {
+      throw new Error(`No E164 for ${this.debugId}`);
+    }
+    return res;
+  }
+
+  public get pniAddress(): ProtocolAddress | undefined {
     return this.privPniAddress;
+  }
+
+  public get checkedPniAddress(): ProtocolAddress {
+    const res = this.pniAddress;
+
+    if (res == null) {
+      throw new Error(`No PNI for ${this.debugId}`);
+    }
+    return res;
   }
 
   public async changeNumber({
@@ -175,7 +233,7 @@ export class Device {
     this.privNumber = number;
     this.privPni = pni;
     this.pniRegistrationId = pniRegistrationId;
-    this.privPniAddress = ProtocolAddress.new(this.pni, this.deviceId);
+    this.privPniAddress = ProtocolAddress.new(pni, this.deviceId);
   }
 
   public async setKeys(
@@ -284,7 +342,9 @@ export class Device {
     return keys.kyberPreKeys.length;
   }
 
-  public getServiceIdByKind(serviceIdKind: ServiceIdKind): ServiceIdString {
+  public getServiceIdByKind(
+    serviceIdKind: ServiceIdKind,
+  ): ServiceIdString | undefined {
     switch (serviceIdKind) {
       case ServiceIdKind.ACI:
         return this.aci;
@@ -295,7 +355,7 @@ export class Device {
 
   public getServiceIdBinaryByKind(
     serviceIdKind: ServiceIdKind,
-  ): Uint8Array<ArrayBuffer> {
+  ): Uint8Array<ArrayBuffer> | undefined {
     switch (serviceIdKind) {
       case ServiceIdKind.ACI:
         return this.aciBinary;
@@ -320,13 +380,16 @@ export class Device {
     if (timingSafeEqual(serviceIdBinary, this.aciBinary)) {
       return ServiceIdKind.ACI;
     }
-    if (timingSafeEqual(serviceIdBinary, this.pniBinary)) {
+    const { pniBinary } = this;
+    if (pniBinary != null && timingSafeEqual(serviceIdBinary, pniBinary)) {
       return ServiceIdKind.PNI;
     }
     throw new Error('Unknown serviceId');
   }
 
-  public getAddressByKind(serviceIdKind: ServiceIdKind): ProtocolAddress {
+  public getAddressByKind(
+    serviceIdKind: ServiceIdKind,
+  ): ProtocolAddress | undefined {
     switch (serviceIdKind) {
       case ServiceIdKind.ACI:
         return this.address;

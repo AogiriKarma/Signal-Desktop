@@ -4,7 +4,7 @@
 import assert from 'assert';
 import { Buffer } from 'buffer';
 import { Http2ServerRequest } from 'http2';
-import { timingSafeEqual } from 'crypto';
+import { timingSafeEqual, randomBytes } from 'crypto';
 import createDebug from 'debug';
 import {
   CreateCallLinkCredentialRequest,
@@ -39,6 +39,7 @@ import {
   DeviceId,
   ProvisionIdString,
   ProvisioningCode,
+  AciString,
   ServiceIdKind,
   ServiceIdString,
   untagPni,
@@ -439,7 +440,7 @@ export class Connection extends Service {
       const { registrationId, pniRegistrationId } = accountAttributes;
 
       const device = await server.provisionDevice({
-        number: username,
+        aci: username as AciString,
         password,
         provisioningCode: verificationCode as ProvisioningCode,
         registrationId,
@@ -455,17 +456,23 @@ export class Connection extends Service {
         lastResortKey: decodeKyberPreKey(aciPqLastResortPreKey),
         signedPreKey: decodeSignedPreKey(aciSignedPreKey),
       });
-      await server.updateDeviceKeys(device, ServiceIdKind.PNI, {
-        lastResortKey: decodeKyberPreKey(pniPqLastResortPreKey),
-        signedPreKey: decodeSignedPreKey(pniSignedPreKey),
-      });
+      if (device.pni != null) {
+        assert(
+          pniPqLastResortPreKey != null && pniSignedPreKey != null,
+          'Missing required PNI key material',
+        );
+        await server.updateDeviceKeys(device, ServiceIdKind.PNI, {
+          lastResortKey: decodeKyberPreKey(pniPqLastResortPreKey),
+          signedPreKey: decodeSignedPreKey(pniSignedPreKey),
+        });
+      }
 
       return [
         200,
         {
           deviceId: device.deviceId,
           uuid: device.aci,
-          pni: untagPni(device.pni),
+          pni: device.pni ? untagPni(device.pni) : undefined,
         },
       ];
     });
@@ -721,6 +728,8 @@ export class Connection extends Service {
         password,
         pniRegistrationId,
         registrationId,
+        // TODO(inutny): take as an input
+        authCredentialSalt: randomBytes(16),
       });
 
       const {
@@ -752,32 +761,38 @@ export class Connection extends Service {
         },
       });
 
-      await primaryDevice.setKeys(ServiceIdKind.PNI, {
-        identityKey: PublicKey.deserialize(
-          Buffer.from(pniIdentityKey, 'base64'),
-        ),
-        signedPreKey: {
-          keyId: pniSignedPreKey.keyId,
-          publicKey: PublicKey.deserialize(
-            Buffer.from(pniSignedPreKey.publicKey, 'base64'),
+      if (primaryDevice.pni != null) {
+        assert(
+          pniSignedPreKey != null && pniPqLastResortPreKey != null,
+          'Missing required PNI key material',
+        );
+        await primaryDevice.setKeys(ServiceIdKind.PNI, {
+          identityKey: PublicKey.deserialize(
+            Buffer.from(pniIdentityKey, 'base64'),
           ),
-          signature: Buffer.from(pniSignedPreKey.signature, 'base64'),
-        },
-        lastResortKey: {
-          keyId: pniPqLastResortPreKey.keyId,
-          publicKey: KEMPublicKey.deserialize(
-            Buffer.from(pniPqLastResortPreKey.publicKey, 'base64'),
-          ),
-          signature: Buffer.from(pniPqLastResortPreKey.signature, 'base64'),
-        },
-      });
+          signedPreKey: {
+            keyId: pniSignedPreKey.keyId,
+            publicKey: PublicKey.deserialize(
+              Buffer.from(pniSignedPreKey.publicKey, 'base64'),
+            ),
+            signature: Buffer.from(pniSignedPreKey.signature, 'base64'),
+          },
+          lastResortKey: {
+            keyId: pniPqLastResortPreKey.keyId,
+            publicKey: KEMPublicKey.deserialize(
+              Buffer.from(pniPqLastResortPreKey.publicKey, 'base64'),
+            ),
+            signature: Buffer.from(pniPqLastResortPreKey.signature, 'base64'),
+          },
+        });
+      }
 
       const mixinData = this.server.getRegisterResponseData();
 
       const result: RegisterAccountResponse = {
         uuid: primaryDevice.aci.toString(),
         number,
-        pni: primaryDevice.pni.toString().replace(/^PNI:/i, ''),
+        pni: primaryDevice.pni?.toString().replace(/^PNI:/i, ''),
         storageCapable: false,
         entitlements: {
           badges: [],
@@ -819,7 +834,7 @@ export class Connection extends Service {
                 from: parseInt(from as string, 10),
                 to: parseInt(to as string, 10),
               }),
-            pni: untagPni(device.pni),
+            pni: device.pni ? untagPni(device.pni) : undefined,
           },
         ];
       },
@@ -934,7 +949,7 @@ export class Connection extends Service {
           200,
           {
             uuid: device.aci,
-            pni: untagPni(device.pni),
+            pni: device.pni ? untagPni(device.pni) : undefined,
             number: device.number,
           },
         ];

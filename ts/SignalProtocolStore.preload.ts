@@ -2713,7 +2713,7 @@ export class SignalProtocolStore extends EventEmitter {
 
   signAlternateIdentity(): PniSignatureMessageType | undefined {
     const ourAci = itemStorage.user.getCheckedAci();
-    const ourPni = itemStorage.user.getPni();
+    const ourPni = itemStorage.user.getOptionalPni();
     if (!ourPni) {
       log.error('signAlternateIdentity: No local pni');
       return undefined;

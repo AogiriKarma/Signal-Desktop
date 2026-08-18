@@ -6,9 +6,9 @@ import loadImage from 'blueimp-load-image';
 
 import type { MIMEType } from '../types/MIME.std.ts';
 import { IMAGE_JPEG } from '../types/MIME.std.ts';
+import { getCountryCode } from '../types/PhoneNumber.std.ts';
 import { canvasToBlob } from './canvasToBlob.std.ts';
 import { getValue } from '../RemoteConfig.dom.ts';
-import { parseNumber } from './libphonenumberUtil.std.ts';
 import { itemStorage } from '../textsecure/Storage.preload.ts';
 
 enum MediaQualityLevels {
@@ -71,20 +71,13 @@ function getMediaQualityLevel(): MediaQualityLevels {
     return DEFAULT_LEVEL;
   }
 
-  const e164 = itemStorage.user.getNumber();
-  if (!e164) {
-    return DEFAULT_LEVEL;
-  }
-
-  const parsedPhoneNumber = parseNumber(e164);
-  if (!parsedPhoneNumber.isValidNumber) {
-    return DEFAULT_LEVEL;
-  }
+  const e164 = itemStorage.user.getOptionalNumber();
 
   const countryValues = parseCountryValues(values);
+  const countryCode = getCountryCode(e164);
 
-  const level = parsedPhoneNumber.countryCode
-    ? countryValues.get(parsedPhoneNumber.countryCode)
+  const level = countryCode
+    ? countryValues.get(String(countryCode))
     : undefined;
   if (level) {
     return level;

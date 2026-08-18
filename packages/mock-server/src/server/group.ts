@@ -102,7 +102,7 @@ export class ServerGroup extends Group {
 
   public modify(
     sourceAci: UuidCiphertext,
-    sourcePni: UuidCiphertext,
+    sourcePni: UuidCiphertext | undefined,
     actions: Proto.GroupChange.Actions.Params,
   ): ModifyGroupResult {
     const appliedActions: Proto.GroupChange.Actions.Params = {
@@ -243,7 +243,8 @@ export class ServerGroup extends Group {
 
       assert.ok(
         Buffer.from(deletedUserId).equals(sourceAci.serialize()) ||
-          Buffer.from(deletedUserId).equals(sourcePni.serialize()),
+          (sourcePni &&
+            Buffer.from(deletedUserId).equals(sourcePni.serialize())),
         'Not a pending member',
       );
 
@@ -336,6 +337,7 @@ export class ServerGroup extends Group {
 
       const aci = presentationFFI.getUuidCiphertext();
       const pni = sourcePni;
+      assert(pni != null, 'Must know pni source for promotePNIMembers');
       const profileKey = presentationFFI.getProfileKeyCiphertext();
 
       assert.ok(
@@ -365,7 +367,7 @@ export class ServerGroup extends Group {
       ];
 
       changeEpoch = Math.max(changeEpoch, 5);
-      appliedActions.sourceUserId = sourcePni.serialize();
+      appliedActions.sourceUserId = pni.serialize();
       appliedActions.promoteMembersPendingPniAciProfileKey = [
         ...(appliedActions.promoteMembersPendingPniAciProfileKey ?? []),
         {

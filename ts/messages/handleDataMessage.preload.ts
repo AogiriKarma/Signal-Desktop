@@ -521,8 +521,11 @@ export async function handleDataMessage(
         );
       }
 
-      const ourPni = itemStorage.user.getCheckedPni();
-      const ourServiceIds = new Set<ServiceIdString>([ourAci, ourPni]);
+      const ourPni = itemStorage.user.getOptionalPni();
+      const ourServiceIds = new Set<ServiceIdString>([ourAci]);
+      if (ourPni != null) {
+        ourServiceIds.add(ourPni);
+      }
 
       // oxlint-disable-next-line no-param-reassign
       message = window.MessageCache.register(message);
@@ -683,8 +686,9 @@ export async function handleDataMessage(
 
         if (initialMessage.profileKey) {
           const { profileKey } = initialMessage;
+          const ourE164 = itemStorage.user.getOptionalNumber();
           if (
-            source === itemStorage.user.getNumber() ||
+            (ourE164 != null && source === ourE164) ||
             sourceServiceId === itemStorage.user.getAci()
           ) {
             conversation.set({ profileSharing: true });

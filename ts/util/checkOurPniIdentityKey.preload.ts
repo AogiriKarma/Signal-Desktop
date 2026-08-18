@@ -11,7 +11,11 @@ import { toTaggedPni } from '../types/ServiceId.std.ts';
 const log = createLogger('checkOurPniIdentityKey');
 
 export async function checkOurPniIdentityKey(): Promise<void> {
-  const ourPni = itemStorage.user.getCheckedPni();
+  const ourPni = itemStorage.user.getOptionalPni();
+  if (ourPni == null) {
+    return;
+  }
+
   const { pni: remotePni } = await whoami();
   if (toTaggedPni(remotePni) !== ourPni) {
     log.warn(`remote pni mismatch, ${remotePni} != ${ourPni}`);

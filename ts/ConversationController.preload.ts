@@ -645,9 +645,9 @@ export class ConversationController {
   }
 
   getOurConversationId(): string | undefined {
-    const e164 = itemStorage.user.getNumber();
+    const e164 = itemStorage.user.getOptionalNumber();
     const aci = itemStorage.user.getAci();
-    const pni = itemStorage.user.getPni();
+    const pni = itemStorage.user.getOptionalPni();
 
     if (!e164 && !aci && !pni) {
       return undefined;

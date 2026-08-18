@@ -153,51 +153,78 @@ export enum AccountType {
 }
 
 type CreateAccountSharedOptionsType = Readonly<{
-  number: string;
   aciKeyPair: KeyPairType;
-  pniKeyPair: KeyPairType;
   profileKey: Uint8Array<ArrayBuffer>;
   masterKey: Uint8Array<ArrayBuffer> | undefined;
   accountEntropyPool: string | undefined;
 }>;
 
-type CreatePrimaryDeviceOptionsType = Readonly<{
-  type: AccountType.Primary;
+type CreatePrimaryDeviceOptionsType = Readonly<
+  {
+    type: AccountType.Primary;
 
-  deviceName?: undefined;
-  ourAci?: undefined;
-  ourPni?: undefined;
-  userAgent?: undefined;
-  ephemeralBackupKey?: undefined;
-  mediaRootBackupKey: Uint8Array<ArrayBuffer>;
+    deviceName?: undefined;
+    ourAci?: undefined;
+    ourPni?: undefined;
+    userAgent?: undefined;
+    ephemeralBackupKey?: undefined;
+    mediaRootBackupKey: Uint8Array<ArrayBuffer>;
 
-  readReceipts: true;
+    readReceipts: true;
 
-  accessKey: Uint8Array<ArrayBuffer>;
+    accessKey: Uint8Array<ArrayBuffer>;
 
-  sessionId: string;
-  registrationLockToken?: string;
-  phoneNumberDiscoverability: PhoneNumberDiscoverability;
-}> &
+    sessionId: string;
+    registrationLockToken?: string;
+    phoneNumberDiscoverability: PhoneNumberDiscoverability;
+  } & (
+    | {
+        pniKeyPair: KeyPairType;
+        number: string;
+        hasE164: true;
+      }
+    | {
+        pniKeyPair?: undefined;
+        number?: undefined;
+        hasE164: false;
+      }
+  )
+> &
   CreateAccountSharedOptionsType;
 
-export type CreateLinkedDeviceOptionsType = Readonly<{
-  type: AccountType.Linked;
+export type CreateLinkedDeviceOptionsType = Readonly<
+  {
+    type: AccountType.Linked;
 
-  deviceName: string;
-  ourAci: AciString;
-  ourPni: PniString;
-  userAgent?: string;
-  ephemeralBackupKey: Uint8Array<ArrayBuffer> | undefined;
-  mediaRootBackupKey: Uint8Array<ArrayBuffer> | undefined;
+    deviceName: string;
+    ourAci: AciString;
+    userAgent?: string;
+    ephemeralBackupKey: Uint8Array<ArrayBuffer> | undefined;
+    mediaRootBackupKey: Uint8Array<ArrayBuffer> | undefined;
 
-  readReceipts: boolean;
+    readReceipts: boolean;
 
-  accessKey?: undefined;
+    accessKey?: undefined;
 
-  verificationCode: string;
-  sessionId?: undefined;
-}> &
+    verificationCode: string;
+    sessionId?: undefined;
+  } & (
+    | {
+        pniKeyPair: KeyPairType;
+        ourPni: PniString;
+        number: string;
+        authCredentialSalt?: Uint8Array<ArrayBuffer>;
+        hasE164: true;
+      }
+    | {
+        pniKeyPair?: undefined;
+        ourPni?: undefined;
+        number?: undefined;
+        authCredentialSalt: Uint8Array<ArrayBuffer>;
+        hasE164: false;
+      }
+  )
+> &
   CreateAccountSharedOptionsType;
 
 type CreateAccountOptionsType =
@@ -440,6 +467,7 @@ export default class AccountManager extends EventTarget {
 
       const result = await this.#createAccount({
         type: AccountType.Primary,
+        hasE164: true,
         number,
         sessionId,
         aciKeyPair,
@@ -590,6 +618,15 @@ export default class AccountManager extends EventTarget {
     const logId = `maybeUpdateKeys(${serviceIdKind})`;
     await this.#queueTask(async () => {
       let identityKey: KeyPairType;
+
+      // Don't attempt to update PNI keys when we don't have PNI
+      if (
+        serviceIdKind === ServiceIdKind.PNI &&
+        itemStorage.user.getOptionalNumber() == null &&
+        itemStorage.user.getOptionalPni() == null
+      ) {
+        return;
+      }
 
       try {
         const ourServiceId =
@@ -1042,9 +1079,7 @@ export default class AccountManager extends EventTarget {
     options: CreateAccountOptionsType
   ): Promise<CreateAccountReturnType> {
     const {
-      number,
       aciKeyPair,
-      pniKeyPair,
       profileKey,
       masterKey,
       mediaRootBackupKey,
@@ -1063,11 +1098,13 @@ export default class AccountManager extends EventTarget {
     const registrationId = generateRegistrationId();
     const pniRegistrationId = generateRegistrationId();
 
-    const previousNumber = itemStorage.user.getNumber();
+    const previousNumber = itemStorage.user.getOptionalNumber();
     const previousAci = itemStorage.user.getAci();
-    const previousPni = itemStorage.user.getPni();
+    const previousPni = itemStorage.user.getOptionalPni();
 
-    log.info(`createAccount: Number is ${number}, type is ${options.type}`);
+    log.info(
+      `createAccount: Number is ${options.number}, type is ${options.type}`
+    );
 
     let shouldDeleteConfigOnly: boolean;
     if (options.type === AccountType.Primary) {
@@ -1075,7 +1112,7 @@ export default class AccountManager extends EventTarget {
     } else if (options.type === AccountType.Linked) {
       shouldDeleteConfigOnly = getIsRelinkingToSameAccount({
         newAci: options.ourAci,
-        newNumber: number,
+        newNumber: options.number,
         previousAci,
         previousNumber,
       });
@@ -1126,53 +1163,86 @@ export default class AccountManager extends EventTarget {
     }
 
     let ourAci: AciString;
-    let ourPni: PniString;
+    let ourPni: PniString | undefined;
     let deviceId: number;
 
     const aciPqLastResortPreKey = await this.#generateLastResortKyberKey(
       ServiceIdKind.ACI,
       aciKeyPair
     );
-    const pniPqLastResortPreKey = await this.#generateLastResortKyberKey(
-      ServiceIdKind.PNI,
-      pniKeyPair
-    );
     const aciSignedPreKey = await this.#generateSignedPreKey(
       ServiceIdKind.ACI,
       aciKeyPair
     );
-    const pniSignedPreKey = await this.#generateSignedPreKey(
-      ServiceIdKind.PNI,
-      pniKeyPair
-    );
 
-    const keysToUpload = {
+    const aciKeysToUpload = {
       aciPqLastResortPreKey: kyberPreKeyToUploadSignedPreKey(
         aciPqLastResortPreKey
       ),
       aciSignedPreKey: signedPreKeyToUploadSignedPreKey(aciSignedPreKey),
-      pniPqLastResortPreKey: kyberPreKeyToUploadSignedPreKey(
-        pniPqLastResortPreKey
-      ),
-      pniSignedPreKey: signedPreKeyToUploadSignedPreKey(pniSignedPreKey),
     };
 
+    let pniKeysToSave:
+      | {
+          pniSignedPreKey: CompatSignedPreKeyType;
+          pniPqLastResortPreKey: KyberPreKeyRecord;
+        }
+      | undefined;
+    let pniKeysToUpload:
+      | {
+          pniSignedPreKey: UploadSignedPreKeyType;
+          pniPqLastResortPreKey: UploadKyberPreKeyType;
+        }
+      | undefined;
+    if (options.hasE164) {
+      pniKeysToSave = {
+        pniPqLastResortPreKey: await this.#generateLastResortKyberKey(
+          ServiceIdKind.PNI,
+          options.pniKeyPair
+        ),
+        pniSignedPreKey: await this.#generateSignedPreKey(
+          ServiceIdKind.PNI,
+          options.pniKeyPair
+        ),
+      };
+      pniKeysToUpload = {
+        pniPqLastResortPreKey: kyberPreKeyToUploadSignedPreKey(
+          pniKeysToSave.pniPqLastResortPreKey
+        ),
+        pniSignedPreKey: signedPreKeyToUploadSignedPreKey(
+          pniKeysToSave.pniSignedPreKey
+        ),
+      };
+    }
+
     let result: CreateAccountReturnType;
+    let authCredentialSalt: Uint8Array<ArrayBuffer> | undefined;
 
     if (options.type === AccountType.Primary) {
-      const response = await createAccount({
-        number,
-        newPassword: password,
-        registrationId,
-        pniRegistrationId,
-        accessKey: options.accessKey,
-        sessionId: options.sessionId,
-        aciPublicKey: aciKeyPair.publicKey,
-        pniPublicKey: pniKeyPair.publicKey,
-        registrationLockToken: options.registrationLockToken,
-        phoneNumberDiscoverability: options.phoneNumberDiscoverability,
-        ...keysToUpload,
-      });
+      let response: Awaited<ReturnType<typeof createAccount>>;
+      if (options.hasE164) {
+        strictAssert(
+          pniKeysToUpload != null,
+          'Must have PNI keys for E164 registration'
+        );
+        response = await createAccount({
+          newPassword: password,
+          registrationId,
+          accessKey: options.accessKey,
+          sessionId: options.sessionId,
+          aciPublicKey: aciKeyPair.publicKey,
+          registrationLockToken: options.registrationLockToken,
+          phoneNumberDiscoverability: options.phoneNumberDiscoverability,
+
+          number: options.number,
+          pniRegistrationId,
+          pniPublicKey: options.pniKeyPair.publicKey,
+          ...aciKeysToUpload,
+          ...pniKeysToUpload,
+        });
+      } else {
+        throw new Error('Unsupported E164-less registration');
+      }
 
       ourAci = normalizeAci(
         response.aci.getServiceIdString(),
@@ -1195,31 +1265,56 @@ export default class AccountManager extends EventTarget {
       );
       await this.deviceNameIsEncrypted();
 
-      const response = await linkDevice({
-        number,
-        verificationCode: options.verificationCode,
-        encryptedDeviceName,
-        newPassword: password,
-        registrationId,
-        pniRegistrationId,
-        ...keysToUpload,
-      });
+      ({ authCredentialSalt } = options);
+
+      let response: Awaited<ReturnType<typeof linkDevice>>;
+      if (options.hasE164) {
+        strictAssert(
+          pniKeysToUpload != null,
+          'Must have PNI keys for E164 linking'
+        );
+        response = await linkDevice({
+          aci: options.ourAci,
+          verificationCode: options.verificationCode,
+          encryptedDeviceName,
+          newPassword: password,
+          registrationId,
+
+          hasE164: true,
+          pniRegistrationId,
+          ...aciKeysToUpload,
+          ...pniKeysToUpload,
+        });
+      } else {
+        response = await linkDevice({
+          aci: options.ourAci,
+          verificationCode: options.verificationCode,
+          encryptedDeviceName,
+          newPassword: password,
+          registrationId,
+
+          hasE164: false,
+          ...aciKeysToUpload,
+        });
+      }
 
       ourAci = normalizeAci(response.uuid, 'createAccount');
-      strictAssert(
-        isUntaggedPniString(response.pni),
-        'Response pni must be untagged'
-      );
-      ourPni = toTaggedPni(response.pni);
+      if (response.pni != null) {
+        strictAssert(
+          isUntaggedPniString(response.pni),
+          'Response pni must be untagged'
+        );
+        ourPni = toTaggedPni(response.pni);
+        strictAssert(
+          ourPni === options.ourPni,
+          'Server response has unexpected PNI'
+        );
+      }
       deviceId = response.deviceId ?? 1;
 
       strictAssert(
         ourAci === options.ourAci,
         'Server response has unexpected ACI'
-      );
-      strictAssert(
-        ourPni === options.ourPni,
-        'Server response has unexpected PNI'
       );
 
       result = {
@@ -1249,6 +1344,10 @@ export default class AccountManager extends EventTarget {
       );
     }
 
+    if (authCredentialSalt != null) {
+      await itemStorage.put('authCredentialSalt', authCredentialSalt);
+    }
+
     // `setCredentials` needs to be called
     // before `saveIdentifyWithAttributes` since `saveIdentityWithAttributes`
     // indirectly calls `ConversationController.getConversationId()` which
@@ -1258,7 +1357,7 @@ export default class AccountManager extends EventTarget {
     await itemStorage.user.setCredentials({
       aci: ourAci,
       pni: ourPni,
-      number,
+      number: options.number,
       deviceId,
       deviceName: options.deviceName,
       password,
@@ -1272,7 +1371,7 @@ export default class AccountManager extends EventTarget {
     window.ConversationController.maybeMergeContacts({
       aci: ourAci,
       pni: ourPni,
-      e164: number,
+      e164: options.number,
       reason: 'createAccount',
     });
 
@@ -1290,10 +1389,12 @@ export default class AccountManager extends EventTarget {
         ...identityAttrs,
         publicKey: aciKeyPair.publicKey.serialize(),
       }),
-      signalProtocolStore.saveIdentityWithAttributes(ourPni, {
-        ...identityAttrs,
-        publicKey: pniKeyPair.publicKey.serialize(),
-      }),
+      options.hasE164 && ourPni
+        ? signalProtocolStore.saveIdentityWithAttributes(ourPni, {
+            ...identityAttrs,
+            publicKey: options.pniKeyPair.publicKey.serialize(),
+          })
+        : Promise.resolve(),
     ]);
 
     const identityKeyMap = itemStorage.get('identityKeyMap') || {};
@@ -1302,14 +1403,20 @@ export default class AccountManager extends EventTarget {
       pubKey: aciKeyPair.publicKey.serialize(),
       privKey: aciKeyPair.privateKey.serialize(),
     };
-    identityKeyMap[ourPni] = {
-      pubKey: pniKeyPair.publicKey.serialize(),
-      privKey: pniKeyPair.privateKey.serialize(),
-    };
+    if (options.hasE164) {
+      strictAssert(ourPni != null, 'Expected pni');
+      identityKeyMap[ourPni] = {
+        pubKey: options.pniKeyPair.publicKey.serialize(),
+        privKey: options.pniKeyPair.privateKey.serialize(),
+      };
+    }
 
     const registrationIdMap = itemStorage.get('registrationIdMap') || {};
     registrationIdMap[ourAci] = registrationId;
-    registrationIdMap[ourPni] = pniRegistrationId;
+    if (ourPni != null) {
+      strictAssert(pniRegistrationId != null, 'Expected pni registration id');
+      registrationIdMap[ourPni] = pniRegistrationId;
+    }
 
     await itemStorage.put('identityKeyMap', identityKeyMap);
     await itemStorage.put('registrationIdMap', registrationIdMap);
@@ -1345,8 +1452,10 @@ export default class AccountManager extends EventTarget {
 
     await itemStorage.put('read-receipt-setting', readReceipts);
 
-    const regionCode = getRegionCodeForNumber(number);
-    await itemStorage.put('regionCode', regionCode);
+    if (options.number != null) {
+      const regionCode = getRegionCodeForNumber(options.number);
+      await itemStorage.put('regionCode', regionCode);
+    }
     await signalProtocolStore.hydrateCaches();
 
     await signalProtocolStore.storeSignedPreKey(
@@ -1354,32 +1463,40 @@ export default class AccountManager extends EventTarget {
       aciSignedPreKey.keyId,
       aciSignedPreKey.keyPair
     );
-    await signalProtocolStore.storeSignedPreKey(
-      ourPni,
-      pniSignedPreKey.keyId,
-      pniSignedPreKey.keyPair
-    );
     await signalProtocolStore.storeKyberPreKeys(ourAci, [
       kyberPreKeyToStoredSignedPreKey(aciPqLastResortPreKey, ourAci),
     ]);
-    await signalProtocolStore.storeKyberPreKeys(ourPni, [
-      kyberPreKeyToStoredSignedPreKey(pniPqLastResortPreKey, ourPni),
-    ]);
-
     await this._confirmKeys(
       {
-        pqLastResortPreKey: keysToUpload.aciPqLastResortPreKey,
-        signedPreKey: keysToUpload.aciSignedPreKey,
+        pqLastResortPreKey: aciKeysToUpload.aciPqLastResortPreKey,
+        signedPreKey: aciKeysToUpload.aciSignedPreKey,
       },
       ServiceIdKind.ACI
     );
-    await this._confirmKeys(
-      {
-        pqLastResortPreKey: keysToUpload.pniPqLastResortPreKey,
-        signedPreKey: keysToUpload.pniSignedPreKey,
-      },
-      ServiceIdKind.PNI
-    );
+
+    if (pniKeysToUpload != null) {
+      strictAssert(ourPni != null, 'Must have PNI');
+      strictAssert(pniKeysToSave != null, 'Must have PNI keys to save');
+      await signalProtocolStore.storeSignedPreKey(
+        ourPni,
+        pniKeysToSave.pniSignedPreKey.keyId,
+        pniKeysToSave.pniSignedPreKey.keyPair
+      );
+      await signalProtocolStore.storeKyberPreKeys(ourPni, [
+        kyberPreKeyToStoredSignedPreKey(
+          pniKeysToSave.pniPqLastResortPreKey,
+          ourPni
+        ),
+      ]);
+
+      await this._confirmKeys(
+        {
+          pqLastResortPreKey: pniKeysToUpload.pniPqLastResortPreKey,
+          signedPreKey: pniKeysToUpload.pniSignedPreKey,
+        },
+        ServiceIdKind.PNI
+      );
+    }
 
     const uploadKeys = async (kind: ServiceIdKind) => {
       try {
@@ -1400,7 +1517,7 @@ export default class AccountManager extends EventTarget {
 
     await Promise.all([
       uploadKeys(ServiceIdKind.ACI),
-      uploadKeys(ServiceIdKind.PNI),
+      options.hasE164 ? uploadKeys(ServiceIdKind.PNI) : undefined,
     ]);
 
     return result;
@@ -1492,7 +1609,7 @@ export default class AccountManager extends EventTarget {
   ): Promise<void> {
     const logId = `AccountManager.setPni(${pni})`;
 
-    const oldPni = itemStorage.user.getPni();
+    const oldPni = itemStorage.user.getOptionalPni();
     if (oldPni === pni && !keyMaterial) {
       return;
     }

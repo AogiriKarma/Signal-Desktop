@@ -589,6 +589,7 @@ export class PrimaryDevice {
   public readonly accountEntropyPool = AccountEntropyPool.generate();
   public readonly masterKey = deriveMasterKey(this.accountEntropyPool);
   public readonly mediaRootBackupKey = crypto.randomBytes(32);
+  public readonly authCredentialSalt = crypto.randomBytes(16);
 
   // Forwarded in provisioning envelope
   public ephemeralBackupKey: Buffer<ArrayBuffer> | undefined;
@@ -605,13 +606,18 @@ export class PrimaryDevice {
     private readonly config: Config,
   ) {
     for (const serviceIdKind of [ServiceIdKind.ACI, ServiceIdKind.PNI]) {
+      const serviceId = device.getServiceIdByKind(serviceIdKind);
+      if (serviceId == null) {
+        continue;
+      }
+
       this.identity.set(
         serviceIdKind,
         new IdentityStore(
           serviceIdKind === ServiceIdKind.ACI
             ? this.privateKey
             : this.pniPrivateKey,
-          this.device.getRegistrationId(serviceIdKind),
+          this.device.getCheckedRegistrationId(serviceIdKind),
         ),
       );
 
@@ -640,11 +646,14 @@ export class PrimaryDevice {
 
     for (const serviceIdKind of [ServiceIdKind.ACI, ServiceIdKind.PNI]) {
       const identity = this.identity.get(serviceIdKind);
-      assert.ok(identity);
-      await identity.saveIdentity(
-        this.device.getAddressByKind(serviceIdKind),
-        this.getPublicKey(serviceIdKind),
-      );
+      if (identity == null) {
+        continue;
+      }
+
+      const address = this.device.getAddressByKind(serviceIdKind);
+      assert(address != null, 'Expected address for present identity');
+
+      await identity.saveIdentity(address, this.getPublicKey(serviceIdKind));
       await this.device.setKeys(
         serviceIdKind,
         await this.generateKeys(this.device, serviceIdKind),
@@ -841,13 +850,14 @@ export class PrimaryDevice {
     const identity = this.identity.get(ServiceIdKind.ACI);
     assert(identity, 'Should have an ACI identity');
 
-    await identity.saveIdentity(
-      target.getAddressByKind(serviceIdKind),
-      key.identityKey,
-    );
+    const localAddress = this.device.address;
+
+    const address = target.getAddressByKind(serviceIdKind);
+    assert(address, `Missing address for ${serviceIdKind}`);
+    await identity.saveIdentity(address, key.identityKey);
 
     const bundle = PreKeyBundle.new(
-      target.getRegistrationId(serviceIdKind),
+      target.getCheckedRegistrationId(serviceIdKind),
       target.deviceId,
       key.preKey === undefined ? null : key.preKey.keyId,
       key.preKey === undefined ? null : key.preKey.publicKey,
@@ -861,7 +871,8 @@ export class PrimaryDevice {
     );
     await SignalClient.processPreKeyBundle(
       bundle,
-      target.getAddressByKind(serviceIdKind),
+      address,
+      localAddress,
       this.sessions,
       identity,
     );
@@ -959,6 +970,7 @@ export class PrimaryDevice {
     );
     assert(serverGroup !== undefined, 'Group does not exist on server');
 
+    const { pni } = this.device;
     const modifyResult = await this.config.modifyGroup({
       group: serverGroup,
       actions: {
@@ -966,7 +978,7 @@ export class PrimaryDevice {
         version: group.revision + 1,
       },
       aciCiphertext: group.encryptServiceId(this.device.aci),
-      pniCiphertext: group.encryptServiceId(this.device.pni),
+      pniCiphertext: pni ? group.encryptServiceId(pni) : undefined,
     });
 
     assert(!modifyResult.conflict, 'Group update conflict!');
@@ -1048,6 +1060,10 @@ export class PrimaryDevice {
     }: InviteToGroupOptions = {},
   ): Promise<Group> {
     const targetServiceId = invitee.getServiceIdByKind(serviceIdKind);
+    assert(
+      targetServiceId != null,
+      `Missing target service id for ${serviceIdKind}`,
+    );
     const userId = group.encryptServiceId(targetServiceId);
 
     return this.#modifyGroup({
@@ -1351,8 +1367,10 @@ export class PrimaryDevice {
 
       const signature = pniIdentity.signAlternateIdentity(aciPublic);
 
+      const { pni } = this.device;
+      assert(pni, 'must have pni for pni signature');
       pniSignatureMessage = {
-        pni: Pni.parseFromServiceIdString(this.device.pni).getRawUuidBytes(),
+        pni: Pni.parseFromServiceIdString(pni).getRawUuidBytes(),
         signature,
       };
     }
@@ -1601,10 +1619,9 @@ export class PrimaryDevice {
     assert(identity, 'Should have a PNI identity');
     await identity.updateIdentityKey(newPniIdentity.privateKey);
     await identity.updateLocalRegistrationId(newPniRegistrationId);
-    await identity.saveIdentity(
-      this.device.getAddressByKind(ServiceIdKind.PNI),
-      this.getPublicKey(ServiceIdKind.PNI),
-    );
+    const address = this.device.checkedPniAddress;
+
+    await identity.saveIdentity(address, this.getPublicKey(ServiceIdKind.PNI));
 
     // Update all keys and prepare sync message
     const results = await Promise.all(
@@ -1642,10 +1659,12 @@ export class PrimaryDevice {
           senderKeyDistributionMessage: null,
         };
 
+        const { pni } = this.device;
+        assert(pni, 'must have pni for change number');
         const envelope = await this.encryptContent(device, content, {
           ...options,
           timestamp,
-          updatedPni: this.device.pni,
+          updatedPni: pni,
         });
 
         return { device, envelope };
@@ -2144,6 +2163,9 @@ export class PrimaryDevice {
         "Can't send sealed sender to PNI",
       );
 
+      const address = target.getAddressByKind(serviceIdKind);
+      assert(address != null, 'missing address for sealed sender');
+
       if (distributionId) {
         const senderKey = this.senderKeys.get(ServiceIdKind.ACI);
         assert(senderKey, 'Should have an ACI sender keys');
@@ -2164,7 +2186,7 @@ export class PrimaryDevice {
         const multiRecipient =
           await SignalClient.sealedSenderMultiRecipientEncrypt(
             usmc,
-            [target.getAddressByKind(serviceIdKind)],
+            [address],
             identity,
             this.sessions,
           );
@@ -2176,7 +2198,7 @@ export class PrimaryDevice {
       } else {
         content = await SignalClient.sealedSenderEncryptMessage(
           paddedMessage,
-          target.getAddressByKind(serviceIdKind),
+          address,
           this.senderCertificate,
           this.sessions,
           identity,
@@ -2185,10 +2207,13 @@ export class PrimaryDevice {
 
       envelopeType = Proto.Envelope.Type.UNIDENTIFIED_SENDER;
     } else {
+      const address = target.getAddressByKind(serviceIdKind);
+      assert(address != null, `No address for ${serviceIdKind}`);
+      const ourAddress = this.device.address;
       const ciphertext = await SignalClient.signalEncrypt(
         paddedMessage,
-        target.getAddressByKind(serviceIdKind),
-        this.device.getAddressByKind(ServiceIdKind.ACI),
+        address,
+        ourAddress,
         this.sessions,
         identity,
       );
@@ -2209,13 +2234,19 @@ export class PrimaryDevice {
       }
     }
 
+    const destinationServiceIdBinary =
+      target.getServiceIdBinaryByKind(serviceIdKind);
+    assert(
+      destinationServiceIdBinary != null,
+      `Missing destination service id for ${serviceIdKind}`,
+    );
+
     const envelope = Buffer.from(
       Proto.Envelope.encode({
         type: envelopeType,
         sourceServiceIdBinary: sealed ? null : this.device.aciBinary,
         sourceDeviceId: sealed ? null : this.device.deviceId,
-        destinationServiceIdBinary:
-          target.getServiceIdBinaryByKind(serviceIdKind),
+        destinationServiceIdBinary,
         updatedPniBinary:
           updatedPni === undefined
             ? null
@@ -2270,19 +2301,33 @@ export class PrimaryDevice {
     } else if (envelopeType === EnvelopeType.CipherText) {
       assert(source !== undefined, 'CipherText must have source');
 
+      const localAddress = this.device.getAddressByKind(serviceIdKind);
+      assert(localAddress, `Missing local address for ${serviceIdKind}`);
+
+      const sourceAddress = source.address;
+
       decrypted = await SignalClient.signalDecrypt(
         SignalMessage.deserialize(encrypted),
-        source.getAddressByKind(ServiceIdKind.ACI),
+        sourceAddress,
+        localAddress,
         this.sessions,
         identity,
       );
     } else if (envelopeType === EnvelopeType.PreKey) {
       assert(source !== undefined, 'PreKey must have source');
 
+      const sourceAddress = source.address;
+
+      const ourAddress = this.device.getAddressByKind(serviceIdKind);
+      assert(
+        ourAddress !== undefined,
+        `Missing our own address for ${serviceIdKind}`,
+      );
+
       decrypted = await SignalClient.signalDecryptPreKey(
         PreKeySignalMessage.deserialize(encrypted),
-        source.getAddressByKind(ServiceIdKind.ACI),
-        this.device.getAddressByKind(serviceIdKind),
+        sourceAddress,
+        ourAddress,
         this.sessions,
         identity,
         preKeys,
@@ -2292,14 +2337,14 @@ export class PrimaryDevice {
     } else if (envelopeType === EnvelopeType.SenderKey) {
       assert(source !== undefined, 'SenderKey must have source');
 
+      const sourceAddress = source.address;
+
       decrypted = await SignalClient.groupDecrypt(
-        source.getAddressByKind(serviceIdKind),
+        sourceAddress,
         senderKeys,
         encrypted,
       );
     } else if (envelopeType === EnvelopeType.SealedSender) {
-      assert(source === undefined, 'Sealed sender must have no source');
-
       const usmc = await SignalClient.sealedSenderDecryptToUsmc(
         encrypted,
         identity,

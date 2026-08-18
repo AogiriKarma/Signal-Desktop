@@ -341,7 +341,7 @@ function maybeShowCallQualitySurvey(
   const lastFailureSurveyTime =
     itemStorage.get('lastCallQualityFailureSurveyTime') ?? null;
   const cqsTestMode = itemStorage.get('cqsTestMode') ?? false;
-  const ourE164 = itemStorage.user.getNumber();
+  const ourE164 = itemStorage.user.getOptionalNumber();
 
   if (
     !shouldShowCallQualitySurvey({

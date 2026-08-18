@@ -607,7 +607,7 @@ async function _promiseAjax<Type extends ResponseType, OutputShape>(
       try {
         result = parseUnknown(options.zodSchema, result);
       } catch (e) {
-        log.error(logId, response.status, 'Validation error');
+        log.error(logId, response.status, 'Validation error', e.stack);
         throw e;
       }
     }
@@ -1081,24 +1081,25 @@ export type ResolveUsernameLinkResultType = {
 
 export type CreateAccountOptionsType = Readonly<{
   sessionId: string;
-  number: string;
   newPassword: string;
   registrationId: number;
-  pniRegistrationId: number;
   accessKey: Uint8Array<ArrayBuffer>;
   aciPublicKey: PublicKey;
-  pniPublicKey: PublicKey;
   aciSignedPreKey: UploadSignedPreKeyType;
-  pniSignedPreKey: UploadSignedPreKeyType;
   aciPqLastResortPreKey: UploadKyberPreKeyType;
-  pniPqLastResortPreKey: UploadKyberPreKeyType;
   registrationLockToken?: string;
   phoneNumberDiscoverability: PhoneNumberDiscoverability;
+
+  number: string;
+  pniRegistrationId: number;
+  pniPublicKey: PublicKey;
+  pniSignedPreKey: UploadSignedPreKeyType;
+  pniPqLastResortPreKey: UploadKyberPreKeyType;
 }>;
 
 const linkDeviceResultZod = z.object({
   uuid: aciSchema,
-  pni: untaggedPniSchema,
+  pni: untaggedPniSchema.optional(),
   deviceId: z.number(),
 });
 export type LinkDeviceResultType = z.infer<typeof linkDeviceResultZod>;
@@ -1134,18 +1135,30 @@ const ServerKeyCountSchema = z.object({
   pqCount: z.number(),
 });
 
-export type LinkDeviceOptionsType = Readonly<{
-  number: string;
-  verificationCode: string;
-  encryptedDeviceName?: string;
-  newPassword: string;
-  registrationId: number;
-  pniRegistrationId: number;
-  aciSignedPreKey: UploadSignedPreKeyType;
-  pniSignedPreKey: UploadSignedPreKeyType;
-  aciPqLastResortPreKey: UploadKyberPreKeyType;
-  pniPqLastResortPreKey: UploadKyberPreKeyType;
-}>;
+export type LinkDeviceOptionsType = Readonly<
+  {
+    aci: AciString;
+    verificationCode: string;
+    encryptedDeviceName?: string;
+    newPassword: string;
+    registrationId: number;
+    aciSignedPreKey: UploadSignedPreKeyType;
+    aciPqLastResortPreKey: UploadKyberPreKeyType;
+  } & (
+    | {
+        hasE164: true;
+        pniRegistrationId: number;
+        pniSignedPreKey: UploadSignedPreKeyType;
+        pniPqLastResortPreKey: UploadKyberPreKeyType;
+      }
+    | {
+        hasE164: false;
+        pniRegistrationId?: undefined;
+        pniSignedPreKey?: undefined;
+        pniPqLastResortPreKey?: undefined;
+      }
+  )
+>;
 
 export type CreateBoostOptionsType = Readonly<{
   currency: string;
@@ -2859,19 +2872,20 @@ async function _withNewCredentials<
 
 export async function createAccount({
   sessionId,
-  number,
-  newPassword,
   registrationId,
-  pniRegistrationId,
   accessKey,
   aciPublicKey,
-  pniPublicKey,
   aciSignedPreKey,
-  pniSignedPreKey,
+  newPassword,
   aciPqLastResortPreKey,
-  pniPqLastResortPreKey,
   registrationLockToken,
   phoneNumberDiscoverability,
+
+  number,
+  pniRegistrationId,
+  pniPublicKey,
+  pniSignedPreKey,
+  pniPqLastResortPreKey,
 }: CreateAccountOptionsType): Promise<RegisterAccountResponse> {
   const session = await libsignalNet.resumeRegistrationSession({
     sessionId,
@@ -2888,6 +2902,7 @@ export async function createAccount({
     attachmentBackfill: true,
     spqr: true,
     usernameChangeSyncMessage: true,
+    optionalPhoneNumber: false,
   };
 
   // Desktop doesn't support recovery but we need to provide a recovery password.
@@ -2931,30 +2946,31 @@ export async function createAccount({
     aciPublicKey,
     pniPublicKey,
     aciSignedPreKey: asSignedKey(aciSignedPreKey),
-    pniSignedPreKey: asSignedKey(pniSignedPreKey),
     aciPqLastResortPreKey: asSignedKey(aciPqLastResortPreKey),
+    pniSignedPreKey: asSignedKey(pniSignedPreKey),
     pniPqLastResortPreKey: asSignedKey(pniPqLastResortPreKey),
   });
 
   return response;
 }
 
-export async function linkDevice({
-  number,
-  verificationCode,
-  encryptedDeviceName,
-  newPassword,
-  registrationId,
-  pniRegistrationId,
-  aciSignedPreKey,
-  pniSignedPreKey,
-  aciPqLastResortPreKey,
-  pniPqLastResortPreKey,
-}: LinkDeviceOptionsType): Promise<LinkDeviceResultType> {
+export async function linkDevice(
+  options: LinkDeviceOptionsType
+): Promise<LinkDeviceResultType> {
+  const {
+    verificationCode,
+    encryptedDeviceName,
+    newPassword,
+    registrationId,
+    aciSignedPreKey,
+    aciPqLastResortPreKey,
+  } = options;
+
   const capabilities: CapabilitiesUploadType = {
     attachmentBackfill: true,
     spqr: true,
     usernameChangeSyncMessage: true,
+    optionalPhoneNumber: !options.hasE164,
   };
 
   const jsonData = {
@@ -2963,17 +2979,23 @@ export async function linkDevice({
       fetchesMessages: true,
       name: encryptedDeviceName,
       registrationId,
-      pniRegistrationId,
+      pniRegistrationId: options.hasE164
+        ? options.pniRegistrationId
+        : undefined,
       capabilities,
     },
     aciSignedPreKey: serializeSignedPreKey(aciSignedPreKey),
-    pniSignedPreKey: serializeSignedPreKey(pniSignedPreKey),
     aciPqLastResortPreKey: serializeSignedPreKey(aciPqLastResortPreKey),
-    pniPqLastResortPreKey: serializeSignedPreKey(pniPqLastResortPreKey),
+    pniSignedPreKey: options.hasE164
+      ? serializeSignedPreKey(options.pniSignedPreKey)
+      : undefined,
+    pniPqLastResortPreKey: options.hasE164
+      ? serializeSignedPreKey(options.pniPqLastResortPreKey)
+      : undefined,
   };
   return _withNewCredentials(
     {
-      username: number,
+      username: options.aci,
       password: newPassword,
     },
     async () => {

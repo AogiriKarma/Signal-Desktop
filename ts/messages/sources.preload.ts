@@ -20,7 +20,7 @@ export function getSource(
     log.warn('Message.getSource: Called for non-incoming/non-outgoing message');
   }
 
-  return itemStorage.user.getNumber();
+  return itemStorage.user.getOptionalNumber();
 }
 
 export function getSourceDevice(

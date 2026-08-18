@@ -17,6 +17,12 @@ describe('pnp/change number', function (this: Mocha.Suite) {
   let bootstrap: Bootstrap;
   let app: App;
 
+  before(function () {
+    if (Bootstrap.WITHOUT_E164) {
+      this.skip();
+    }
+  });
+
   beforeEach(async () => {
     bootstrap = new Bootstrap();
     await bootstrap.init();

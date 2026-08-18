@@ -46,10 +46,9 @@ describe('AccountManager', () => {
       .resolves(ourRegistrationId);
     const { user } = itemStorage;
     sandbox.stub(user, 'getAci').returns(ourAci);
-    sandbox.stub(user, 'getPni').returns(ourPni);
+    sandbox.stub(user, 'getOptionalPni').returns(ourPni);
     sandbox.stub(user, 'getServiceId').returns(ourAci);
     sandbox.stub(user, 'getCheckedAci').returns(ourAci);
-    sandbox.stub(user, 'getCheckedPni').returns(ourPni);
     sandbox.stub(user, 'getCheckedServiceId').returns(ourAci);
   });
 

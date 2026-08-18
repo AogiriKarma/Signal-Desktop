@@ -252,6 +252,9 @@ export type StorageAccessType = {
   // link-and-sync backup
   backupEphemeralKey: Uint8Array<ArrayBuffer>;
 
+  // Should be present when linked/registered without PNI/E164
+  authCredentialSalt: Uint8Array<ArrayBuffer>;
+
   // If present - we are resuming the download of known transfer archive
   backupTransitArchive: {
     cdn: number;
@@ -545,6 +548,7 @@ const STORAGE_KEYS_TO_REMOVE_AFTER_UNLINK = [
   'releaseNotesPreviousManifestHash',
   'backupDownloadPath',
   'backupEphemeralKey',
+  'authCredentialSalt',
   'backupTransitArchive',
   'backupTier',
   'cloudBackupStatus',

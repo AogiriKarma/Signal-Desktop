@@ -86,11 +86,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
       const leftPane = window.locator('#LeftPane');
 
       await leftPane
-        .locator(
-          `[data-testid="${contactA.device.getServiceIdByKind(
-            ServiceIdKind.PNI
-          )}"]`
-        )
+        .locator(`[data-testid="${contactA.device.checkedPni}"]`)
         .click();
 
       await window.getByTestId('conversation-hero').waitFor();
@@ -144,7 +140,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
             return item.record.contact.pniBinary?.length
               ? timingSafeEqual(
                   item.record.contact.pniBinary,
-                  contactA.device.pniRawUuid
+                  contactA.device.checkedPniRawUuid
                 )
               : false;
           })
@@ -191,11 +187,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
       const leftPane = window.locator('#LeftPane');
 
       await leftPane
-        .locator(
-          `[data-testid="${contactA.device.getServiceIdByKind(
-            ServiceIdKind.PNI
-          )}"]`
-        )
+        .locator(`[data-testid="${contactA.device.checkedPni}"]`)
         .click();
 
       await window.getByTestId('conversation-hero').waitFor();
@@ -248,7 +240,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
             return item.record.contact.pniBinary?.length
               ? timingSafeEqual(
                   item.record.contact.pniBinary,
-                  contactA.device.pniRawUuid
+                  contactA.device.checkedPniRawUuid
                 )
               : false;
           })
@@ -258,7 +250,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
               identityState: Proto.ContactRecord.IdentityState.DEFAULT,
               whitelisted: true,
               e164: contactA.device.number,
-              pniBinary: contactB.device.pniRawUuid,
+              pniBinary: contactB.device.checkedPniRawUuid,
 
               // Key change - different identity key
               identityKey: contactB.publicKey.serialize(),
@@ -300,11 +292,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
       const leftPane = window.locator('#LeftPane');
 
       await leftPane
-        .locator(
-          `[data-testid="${contactA.device.getServiceIdByKind(
-            ServiceIdKind.PNI
-          )}"]`
-        )
+        .locator(`[data-testid="${contactA.device.checkedPni}"]`)
         .click();
 
       await window.getByTestId('conversation-hero').waitFor();
@@ -357,7 +345,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
             return item.record.contact.pniBinary?.length
               ? timingSafeEqual(
                   item.record.contact.pniBinary,
-                  contactA.device.pniRawUuid
+                  contactA.device.checkedPniRawUuid
                 )
               : false;
           })
@@ -367,7 +355,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
               identityState: Proto.ContactRecord.IdentityState.DEFAULT,
               whitelisted: true,
               e164: contactA.device.number,
-              pniBinary: contactB.device.pniRawUuid,
+              pniBinary: contactB.device.checkedPniRawUuid,
 
               // Note: No identityKey key provided here!
             },
@@ -438,11 +426,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
       const leftPane = window.locator('#LeftPane');
 
       await leftPane
-        .locator(
-          `[data-testid="${contactA.device.getServiceIdByKind(
-            ServiceIdKind.PNI
-          )}"]`
-        )
+        .locator(`[data-testid="${contactA.device.checkedPni}"]`)
         .click();
 
       await window.getByTestId('conversation-hero').waitFor();
@@ -494,7 +478,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
             return item.record.contact.pniBinary?.length
               ? timingSafeEqual(
                   item.record.contact.pniBinary,
-                  contactA.device.pniRawUuid
+                  contactA.device.checkedPniRawUuid
                 )
               : false;
           })
@@ -504,7 +488,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
               identityState: Proto.ContactRecord.IdentityState.DEFAULT,
               whitelisted: true,
               e164: contactA.device.number,
-              pniBinary: contactB.device.pniRawUuid,
+              pniBinary: contactB.device.checkedPniRawUuid,
 
               // Note: No identityKey key provided here!
             },
@@ -533,7 +517,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
             return item.record.contact.pniBinary?.length
               ? timingSafeEqual(
                   item.record.contact.pniBinary,
-                  contactB.device.pniRawUuid
+                  contactB.device.checkedPniRawUuid
                 )
               : false;
           })
@@ -543,7 +527,7 @@ describe('pnp/PNI Change', function (this: Mocha.Suite) {
               identityState: Proto.ContactRecord.IdentityState.DEFAULT,
               whitelisted: true,
               e164: contactA.device.number,
-              pniBinary: contactA.device.pniRawUuid,
+              pniBinary: contactA.device.checkedPniRawUuid,
             },
             ServiceIdKind.PNI
           )

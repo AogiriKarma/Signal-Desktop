@@ -396,7 +396,7 @@ export function isCountryPpmCsvBucketEnabled(
   e164: string | undefined,
   aci: AciString | undefined
 ): boolean {
-  if (e164 == null || aci == null) {
+  if (aci == null) {
     return false;
   }
 

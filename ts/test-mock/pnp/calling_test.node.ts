@@ -23,6 +23,12 @@ describe('pnp/calling', function (this: Mocha.Suite) {
   let alice: PrimaryDevice;
   let stranger: PrimaryDevice;
 
+  before(function () {
+    if (Bootstrap.WITHOUT_E164) {
+      this.skip();
+    }
+  });
+
   beforeEach(async () => {
     bootstrap = new Bootstrap({ contactCount: 0 });
     await bootstrap.init();

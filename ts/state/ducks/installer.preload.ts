@@ -290,15 +290,15 @@ function startInstaller(): ThunkAction<
         if (
           !isCleanStart({
             existingAci: itemStorage.user.getAci(),
-            existingPni: itemStorage.user.getPni(),
-            existingNumber: itemStorage.user.getNumber(),
+            existingPni: itemStorage.user.getOptionalPni(),
+            existingNumber: itemStorage.user.getOptionalNumber(),
             registrationEverDone: Registration.everDone(),
           }) &&
           !isRelinkingToSameAccount({
             newAci: envelope.aci,
             newNumber: envelope.number,
             previousAci: itemStorage.user.getAci(),
-            previousNumber: itemStorage.user.getNumber(),
+            previousNumber: itemStorage.user.getOptionalNumber(),
           })
         ) {
           log.warn(

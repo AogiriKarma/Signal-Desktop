@@ -2699,9 +2699,11 @@ export class MessageSender {
     timestamp: number;
     urgent: boolean;
   }>): Promise<CallbackResultType> {
-    const myE164 = itemStorage.user.getNumber();
+    const myE164 = itemStorage.user.getOptionalNumber();
     const myAci = itemStorage.user.getAci();
-    const serviceIds = recipients.filter(id => id !== myE164 && id !== myAci);
+    const serviceIds = recipients.filter(id => {
+      return (myE164 == null || id !== myE164) && id !== myAci;
+    });
 
     if (serviceIds.length === 0) {
       const dataMessage = proto.content?.dataMessage

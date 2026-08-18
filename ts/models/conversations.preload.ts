@@ -2721,7 +2721,7 @@ export class ConversationModel {
 
         if (isLocalAction) {
           const ourAci = itemStorage.user.getCheckedAci();
-          const ourPni = itemStorage.user.getPni();
+          const ourPni = itemStorage.user.getOptionalPni();
           const ourConversation =
             window.ConversationController.getOurConversationOrThrow();
 
@@ -2882,7 +2882,7 @@ export class ConversationModel {
     }
 
     const ourAci = itemStorage.user.getCheckedAci();
-    const ourPni = itemStorage.user.getPni();
+    const ourPni = itemStorage.user.getOptionalPni();
 
     if (this.isMemberPending(ourAci)) {
       await this.modifyGroupV2({

@@ -301,7 +301,7 @@ describe('pnp/merge', function (this: Mocha.Suite) {
 
               identityKey: pniIdentityKey,
 
-              e164: pniContact.device.number,
+              e164: pniContact.device.checkedNumber,
               givenName: 'PNI Contact',
             },
             ServiceIdKind.PNI
@@ -318,7 +318,7 @@ describe('pnp/merge', function (this: Mocha.Suite) {
 
       debug('Wait for pni contact to appear');
       await leftPane
-        .locator(`[data-testid="${pniContact.device.pni}"]`)
+        .locator(`[data-testid="${pniContact.device.checkedPni}"]`)
         .waitFor();
 
       debug('Verify that the message is in the ACI conversation');
@@ -334,7 +334,7 @@ describe('pnp/merge', function (this: Mocha.Suite) {
 
       debug('Open PNI conversation');
       await leftPane
-        .locator(`[data-testid="${pniContact.device.pni}"]`)
+        .locator(`[data-testid="${pniContact.device.checkedPni}"]`)
         .click();
 
       debug('Verify absence of messages in the PNI conversation');
@@ -418,11 +418,11 @@ describe('pnp/merge', function (this: Mocha.Suite) {
           assert.strictEqual(e164, '');
         } else if (
           pniBinary?.length &&
-          timingSafeEqual(pniBinary, pniContact.device.pniRawUuid)
+          timingSafeEqual(pniBinary, pniContact.device.checkedPniRawUuid)
         ) {
           pniContacts += 1;
           assert.strictEqual(aciBinary?.length, 0);
-          assert.strictEqual(e164, pniContact.device.number);
+          assert.strictEqual(e164, pniContact.device.checkedNumber);
         }
       }
       assert.strictEqual(aciContacts, 1);
@@ -431,7 +431,7 @@ describe('pnp/merge', function (this: Mocha.Suite) {
 
       assert.deepEqual(
         removed[0].contact.pniBinary,
-        pniContact.device.pniRawUuid
+        pniContact.device.checkedPniRawUuid
       );
       assert.deepEqual(
         removed[0].contact.aciBinary,
@@ -540,7 +540,7 @@ describe('pnp/merge', function (this: Mocha.Suite) {
       '.module-SearchInput__input.LeftPaneSearchInput__input'
     );
 
-    await typeIntoInput(searchBox, aciContact.device.number, '');
+    await typeIntoInput(searchBox, aciContact.device.checkedNumber, '');
 
     const firstSearchResult = window.locator(
       '.module-left-pane__no-search-results'
@@ -560,6 +560,7 @@ describe('pnp/merge', function (this: Mocha.Suite) {
       debug(`Send a ${key} sync message`);
       const timestamp = bootstrap.getTimestamp();
       const destinationServiceIdBinary = pniContact.device[`${key}Binary`];
+      assert(destinationServiceIdBinary != null, 'Contact must have ACI/PNI');
       const destination = key === 'pni' ? pniContact.device.number : undefined;
       const content: Proto.Content.Params = {
         content: {
