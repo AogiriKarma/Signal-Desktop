@@ -1367,9 +1367,9 @@ async function showAbout() {
 
 async function getIsLinked() {
   try {
-    const number = await sql.sqlRead('getItemById', 'number_id');
+    const aci = await sql.sqlRead('getItemById', 'uuid_id');
     const password = await sql.sqlRead('getItemById', 'password');
-    return Boolean(number && password);
+    return Boolean(aci && password);
   } catch (e) {
     return false;
   }

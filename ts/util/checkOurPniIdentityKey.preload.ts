@@ -17,6 +17,12 @@ export async function checkOurPniIdentityKey(): Promise<void> {
   }
 
   const { pni: remotePni } = await whoami();
+  if (remotePni == null) {
+    log.warn(`remote pni absent, local is ${ourPni}`);
+    window.Whisper.events.emit('unlinkAndDisconnect');
+    return;
+  }
+
   if (toTaggedPni(remotePni) !== ourPni) {
     log.warn(`remote pni mismatch, ${remotePni} != ${ourPni}`);
     window.Whisper.events.emit('unlinkAndDisconnect');
